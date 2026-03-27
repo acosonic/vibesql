@@ -483,7 +483,7 @@ table.rt td:last-child{border-right:none}
 </header>
 
 <!-- ── SETTINGS MODAL ─────────────────────────── -->
-<div class="overlay" id="overlay">
+<div class="overlay hidden" id="overlay">
   <div class="modal">
     <div class="modal-hdr">
       <h2>Connection Settings</h2>
