@@ -363,7 +363,7 @@ table.rt td:last-child{border-right:none}
 
 /* ── history dropdown ────────────────────────── */
 .history-wrap{position:relative}
-.history-drop{position:absolute;top:calc(100% + 4px);left:0;width:480px;max-width:90vw;background:var(--bg1);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:fadeIn .15s}
+.history-drop{position:absolute;top:calc(100% + 4px);right:0;width:480px;max-width:90vw;background:var(--bg1);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:fadeIn .15s}
 .history-drop.hidden{display:none}
 .history-drop-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line)}
 .history-drop-hdr span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
