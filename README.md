@@ -78,6 +78,18 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 - Dangerous SQL patterns (`INTO OUTFILE`, `LOAD_FILE`, `sys_exec`, etc.) are blocked before execution
 - Inline and modal edits build parameterised `UPDATE` statements — only the target table and its PK are used in the `WHERE` clause
 
+## Brute-force protection
+
+Every failed login attempt on the `test_connection` endpoint is guarded by three stacked layers:
+
+| Layer | Mechanism | Effect |
+|---|---|---|
+| **Fixed delay** | `sleep(2)` on every failed attempt | Caps scripted attacks at ~30 attempts/minute regardless of network speed |
+| **Session backoff** | Exponential wait tracked in `$_SESSION` | After 3 failures: 10 s → 20 s → 40 s … up to 5 minutes per session |
+| **IP block** | Attempt counter written to `/tmp` (survives new sessions) | After 10 failures within 15 minutes, the IP is blocked for 15 minutes |
+
+A successful login clears both the session counter and the IP block file. The counters are per-IP, so one attacker cannot lock out another user's session.
+
 ## Supply-chain safety
 
 VibeSql loads **zero external resources at runtime**. No CDN, no third-party scripts, no remote fonts.

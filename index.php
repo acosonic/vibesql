@@ -14,10 +14,14 @@ $csrf_token = $_SESSION['csrf_token'];
 //  HELPERS
 // ─────────────────────────────────────────────
 function db_connect(string $host, string $user, string $pass, string $db = ''): mysqli|false {
-    $m = @new mysqli($host, $user, $pass, $db);
-    if ($m->connect_errno) return false;
-    $m->set_charset('utf8mb4');
-    return $m;
+    try {
+        $m = new mysqli($host, $user, $pass, $db);
+        if ($m->connect_errno) return false;
+        $m->set_charset('utf8mb4');
+        return $m;
+    } catch (\mysqli_sql_exception) {
+        return false;
+    }
 }
 
 function get_databases(string $host, string $user, string $pass): array {
@@ -118,6 +122,75 @@ function ask_llm(string $key, string $model, string $prompt, array $schema, stri
 }
 
 // ─────────────────────────────────────────────
+//  BRUTE-FORCE PROTECTION
+// ─────────────────────────────────────────────
+
+// Layer 1 – IP-based rate limit (file-backed, survives new sessions)
+// Allows MAX_IP_ATTEMPTS failures per IP within IP_WINDOW seconds,
+// then blocks for IP_BLOCK seconds.
+define('BF_MAX_IP',    10);   // max failures before IP block
+define('BF_IP_WINDOW', 900);  // 15-minute sliding window
+define('BF_IP_BLOCK',  900);  // 15-minute block once limit hit
+
+function bf_ip_file(): string {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    return sys_get_temp_dir() . '/vibesql_bf_' . md5($ip);
+}
+
+function bf_ip_check(): string {
+    $f = bf_ip_file();
+    if (!file_exists($f)) return '';
+    $d = json_decode(file_get_contents($f), true);
+    if (!$d) return '';
+    $now = time();
+    // Remove attempts older than window
+    $d['attempts'] = array_filter($d['attempts'] ?? [], fn($t) => $now - $t < BF_IP_WINDOW);
+    if (count($d['attempts']) >= BF_MAX_IP) {
+        $oldest = min($d['attempts']);
+        $unblock = $oldest + BF_IP_BLOCK;
+        $wait = $unblock - $now;
+        if ($wait > 0) return "Too many failed login attempts from your IP. Try again in {$wait}s.";
+    }
+    return '';
+}
+
+function bf_ip_record_fail(): void {
+    $f = bf_ip_file();
+    $now = time();
+    $d = file_exists($f) ? (json_decode(file_get_contents($f), true) ?? []) : [];
+    $d['attempts'] = array_filter($d['attempts'] ?? [], fn($t) => $now - $t < BF_IP_WINDOW);
+    $d['attempts'][] = $now;
+    file_put_contents($f, json_encode($d), LOCK_EX);
+}
+
+function bf_ip_clear(): void {
+    $f = bf_ip_file();
+    if (file_exists($f)) unlink($f);
+}
+
+// Layer 2 – Session-based exponential backoff
+// After 3 failures in the session: wait = 2^(n-3) * 10s, capped at 5 min.
+define('BF_SESSION_GRACE', 3);
+
+function bf_session_check(): string {
+    $fails = $_SESSION['bf_fails'] ?? 0;
+    if ($fails < BF_SESSION_GRACE) return '';
+    $wait  = min(300, (int)(pow(2, $fails - BF_SESSION_GRACE) * 10));
+    $since = time() - ($_SESSION['bf_last'] ?? 0);
+    if ($since < $wait) return "Too many failed attempts. Wait " . ($wait - $since) . "s before retrying.";
+    return '';
+}
+
+function bf_session_record_fail(): void {
+    $_SESSION['bf_fails'] = ($_SESSION['bf_fails'] ?? 0) + 1;
+    $_SESSION['bf_last']  = time();
+}
+
+function bf_session_clear(): void {
+    unset($_SESSION['bf_fails'], $_SESSION['bf_last']);
+}
+
+// ─────────────────────────────────────────────
 //  JSON API  (called via fetch from JS)
 // ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_api'])) {
@@ -141,8 +214,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_api'])) {
     switch ($action) {
 
         case 'test_connection':
+            // Layer 1: IP block check
+            $ipErr = bf_ip_check();
+            if ($ipErr) { echo json_encode(['ok' => false, 'error' => $ipErr]); break; }
+            // Layer 2: Session backoff check
+            $sessErr = bf_session_check();
+            if ($sessErr) { echo json_encode(['ok' => false, 'error' => $sessErr]); break; }
+
             $m = db_connect($host, $user, $pass);
-            if (!$m) { echo json_encode(['ok' => false, 'error' => 'Connection failed. Check host, user and password.']); break; }
+            if (!$m) {
+                // Layer 3: fixed delay on failure (slows scripted attempts)
+                sleep(2);
+                bf_ip_record_fail();
+                bf_session_record_fail();
+                $fails = $_SESSION['bf_fails'] ?? 1;
+                $msg = 'Connection failed. Check host, user and password.';
+                if ($fails >= BF_SESSION_GRACE) {
+                    $next = min(300, (int)(pow(2, $fails - BF_SESSION_GRACE) * 10));
+                    $msg .= " Next failure will require a {$next}s wait.";
+                }
+                echo json_encode(['ok' => false, 'error' => $msg]);
+                break;
+            }
+            // Success — clear failure counters
+            bf_ip_clear();
+            bf_session_clear();
             $dbs = get_databases($host, $user, $pass);
             $m->close();
             echo json_encode(['ok' => true, 'databases' => $dbs]);
