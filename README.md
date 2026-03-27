@@ -37,7 +37,7 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 
 ```bash
 # Clone or download
-git clone https://github.com/yourname/vibesql.git
+git clone https://github.com/acosonic/vibesql.git
 cd vibesql
 
 # Serve with the built-in PHP server
@@ -60,3 +60,9 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 - All API requests carry a session CSRF token — the PHP endpoint rejects anything without a valid token
 - `mysqli::query()` runs a single statement only — stacked queries (`;DROP TABLE`) are not possible
 - Dangerous SQL patterns (`INTO OUTFILE`, `LOAD_FILE`, `sys_exec`, etc.) are blocked before execution
+
+## Reporting security issues
+
+If you find a security vulnerability, please **do not** open a public issue. Instead, [open a GitHub issue](https://github.com/acosonic/vibesql/issues/new) marked as **Security** and describe the problem. Include steps to reproduce and, if possible, a suggested fix.
+
+For general bugs, feature requests, or questions — [open an issue](https://github.com/acosonic/vibesql/issues/new) on GitHub.

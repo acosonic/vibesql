@@ -712,6 +712,9 @@ async function switchDb(db) {
   LS.set('db', db);
   updateDbHeader();
   clearResults();
+  SS.del('lastSql'); SS.del('lastPrompt');
+  document.getElementById('sqlInput').value = '';
+  document.getElementById('aiInput').value  = '';
   await loadSchema(db);
 }
 
@@ -916,6 +919,21 @@ document.getElementById('sidebarToggle').addEventListener('click', () => {
     sidebarCollapsed ? 'M6 3l4 5-4 5' : 'M10 3L6 8l4 5');
 });
 
+// ── Persist inputs across refresh (sessionStorage) ────
+document.getElementById('sqlInput').addEventListener('input', e => {
+  SS.set('lastSql', e.target.value);
+});
+document.getElementById('aiInput').addEventListener('input', e => {
+  SS.set('lastPrompt', e.target.value);
+});
+
+function restoreInputs() {
+  const sql    = SS.get('lastSql');
+  const prompt = SS.get('lastPrompt');
+  if (sql)    document.getElementById('sqlInput').value = sql;
+  if (prompt) document.getElementById('aiInput').value  = prompt;
+}
+
 // ── Keyboard shortcuts ────────────────────────
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -984,6 +1002,7 @@ function setBtn(id, disabled, html) {
       document.getElementById('workspace').style.display  = 'flex';
       updateDbHeader();
       await loadSchema(db);
+      restoreInputs();
     } else {
       showDbPicker();
     }
