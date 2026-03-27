@@ -329,6 +329,9 @@ header{height:44px;background:var(--bg1);border-bottom:1px solid var(--line);dis
 table.rt{width:max-content;min-width:100%;border-collapse:collapse;font-family:monospace;font-size:12px}
 table.rt thead tr{background:var(--bg2);border-bottom:2px solid var(--line);position:sticky;top:0;z-index:10}
 table.rt th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-right:1px solid var(--line)}
+table.rt th.sortable{cursor:pointer;user-select:none}
+table.rt th.sortable:hover{color:var(--text)}
+table.rt th.sort-active{color:var(--accent)}
 table.rt th:last-child{border-right:none}
 table.rt tbody tr{border-bottom:1px solid var(--line);transition:background .15s}
 table.rt tbody tr:hover{background:var(--bg2)}
@@ -816,16 +819,40 @@ async function doAsk() {
 }
 
 // ── Render table ──────────────────────────────
-function renderTable(cols, rows) {
-  const th = cols.map(c => `<th>${escH(c)}</th>`).join('');
-  const tb = rows.map(row =>
+let sortState = { col: null, dir: 1 }; // dir: 1=asc, -1=desc
+let lastCols = [], lastRows = [];
+
+function renderTable(cols, rows, sortCol = null, sortDir = 1) {
+  lastCols = cols; lastRows = rows;
+  sortState = { col: sortCol, dir: sortDir };
+
+  const sorted = sortCol === null ? rows : [...rows].sort((a, b) => {
+    const av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    const an = parseFloat(av), bn = parseFloat(bv);
+    const cmp = (!isNaN(an) && !isNaN(bn)) ? an - bn : String(av).localeCompare(String(bv));
+    return cmp * sortDir;
+  });
+
+  const th = cols.map((c, i) => {
+    const active = i === sortCol;
+    const arrow  = active ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
+    return `<th class="sortable${active ? ' sort-active' : ''}" onclick="sortBy(${i})">${escH(c)}${arrow}</th>`;
+  }).join('');
+
+  const tb = sorted.map(row =>
     '<tr>' + row.map(v =>
       v === null ? '<td><span class="null-v">NULL</span></td>'
                 : `<td>${escH(String(v))}</td>`
     ).join('') + '</tr>'
   ).join('');
+
   document.getElementById('resultsArea').innerHTML =
     `<div class="result-wrap"><table class="rt"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`;
+}
+
+function sortBy(col) {
+  const dir = sortState.col === col ? -sortState.dir : 1;
+  renderTable(lastCols, lastRows, col, dir);
 }
 
 function clearResults() {
