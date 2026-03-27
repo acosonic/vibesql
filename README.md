@@ -6,6 +6,8 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 ![Dark mode](screenshots/04-workspace-dark.png)
 ![SQL highlighting light](screenshots/05-highlight-light.png)
 ![SQL highlighting dark](screenshots/06-highlight-dark.png)
+![Row detail modal](screenshots/07-row-modal-light.png)
+![Inline cell editing](screenshots/09-inline-edit-light.png)
 
 ## How it works
 
@@ -14,7 +16,7 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 3. **Select a database** — VibeSql loads the full schema into the sidebar
 4. **Ask in plain English** — type something like *"show all open issues assigned to someone, sorted by date"* and click **Generate SQL**
 5. **Review and run** — the generated SQL appears in the editor; press **Run** or `Ctrl+Enter` to execute
-6. **Results appear as a table** — with horizontal scroll for wide result sets
+6. **Results appear as a table** — click a row to inspect it, double-click a cell to edit it in place
 
 ![Settings](screenshots/01-settings-light.png)
 ![Settings dark](screenshots/02-settings-dark.png)
@@ -24,7 +26,15 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 - **Single file** — everything is in `index.php`. No composer, no npm, no build step.
 - **AI SQL generation** — describe what you want, Claude writes the query using your actual schema as context
 - **SQL syntax highlighting** — PrismJS (SQL grammar, light and dark themes) is embedded directly in `index.php` with no CDN calls (see [Supply-chain safety](#supply-chain-safety))
+- **Row detail modal** — click any result row to open a form view of all columns; PK fields are read-only, all others are editable with a Save button
+- **Inline cell editing** — double-click any non-PK cell to edit it in place; a floating Save bar appears on the right with save / cancel controls; `Enter` saves, `Escape` cancels
 - **Schema sidebar** — browse all tables and columns at a glance
+- **Query history** — last 50 queries stored in sessionStorage; re-run with one click
+- **CSV export** — download the full result set (all pages) as a CSV file
+- **Pagination** — results are paged at 50 rows; sort any column by clicking its header
+- **Read-only mode** — toggle a guard that blocks any non-SELECT query before it reaches the server
+- **Execution time** — every query shows how long it took in milliseconds
+- **Autocomplete** — `Ctrl+Space` or type 2+ characters to get table / column suggestions
 - **Dark / light theme** — follows your OS preference automatically; toggle manually at any time
 - **Secure credential storage** — host and user saved in `localStorage`; password and API key in `sessionStorage` only (cleared when the tab closes)
 - **CSRF protection** — every API call is validated server-side against a session token; the endpoint rejects requests from any other origin
@@ -55,6 +65,9 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 |---|---|
 | `Ctrl+Enter` in SQL editor | Run query |
 | `Ctrl+Enter` in AI input | Generate SQL |
+| `Ctrl+Space` in SQL editor | Trigger autocomplete |
+| `Enter` while editing a cell | Save inline edit |
+| `Escape` while editing a cell | Cancel inline edit |
 | `Escape` | Close settings modal |
 
 ## Security notes
@@ -63,6 +76,7 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 - All API requests carry a session CSRF token — the PHP endpoint rejects anything without a valid token
 - `mysqli::query()` runs a single statement only — stacked queries (`;DROP TABLE`) are not possible
 - Dangerous SQL patterns (`INTO OUTFILE`, `LOAD_FILE`, `sys_exec`, etc.) are blocked before execution
+- Inline and modal edits build parameterised `UPDATE` statements — only the target table and its PK are used in the `WHERE` clause
 
 ## Supply-chain safety
 
