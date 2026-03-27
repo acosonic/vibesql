@@ -472,6 +472,9 @@ table.rt td:last-child{border-right:none}
       <button class="btn-connect" id="btnConnect" onclick="saveAndConnect()">
         Test Connection &amp; Save
       </button>
+      <div style="text-align:center">
+        <button onclick="resetTheme()" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px" title="Follow OS light/dark preference">Reset theme to system default</button>
+      </div>
     </div>
   </div>
 </div>
@@ -846,13 +849,24 @@ function showMsg(text, type) {
 function hideMsg() { document.getElementById('msgBar').style.display = 'none'; }
 
 // ── Theme ─────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeIcon(theme);
+}
+
+function resetTheme() {
+  LS.del('theme');
+  const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(sysDark ? 'dark' : 'light');
+}
+
 function toggleTheme() {
-  const html  = document.documentElement;
+  // Once user manually picks, stop following system
+  const html   = document.documentElement;
   const isDark = html.getAttribute('data-theme') === 'dark';
-  const next  = isDark ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  LS.set('theme', next);
-  updateThemeIcon(next);
+  const next   = isDark ? 'light' : 'dark';
+  LS.set('theme', next);   // 'light' or 'dark' = manual override
+  applyTheme(next);
 }
 
 function updateThemeIcon(theme) {
@@ -897,10 +911,16 @@ function setBtn(id, disabled, html) {
 
 // ── Boot ──────────────────────────────────────
 (function boot() {
-  // Apply saved theme immediately
-  const theme = LS.get('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', theme);
-  updateThemeIcon(theme);
+  // Theme: use manual override if set, otherwise follow OS preference
+  const saved  = LS.get('theme');
+  const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme  = saved || (sysDark ? 'dark' : 'light');
+  applyTheme(theme);
+
+  // Keep in sync with OS changes (only when no manual override)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (!LS.get('theme')) applyTheme(e.matches ? 'dark' : 'light');
+  });
 
   // Load saved credentials
   const host   = LS.get('host');

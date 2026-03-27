@@ -1,30 +1,50 @@
 # VibeSql
 
-A single-file PHP MySQL query interface with AI-powered SQL generation via Claude.
+A single small PHP file that turns any MySQL database into an AI-powered query interface. Drop one file on your server, open it in a browser, and start asking questions in plain English — VibeSql uses the Claude API to understand your database schema and write the SQL for you.
+
+![Light mode](screenshots/03-workspace-light.png)
+![Dark mode](screenshots/04-workspace-dark.png)
+
+## How it works
+
+1. **Open the app** — a settings modal appears on first run
+2. **Enter your MySQL credentials** — host, user and password are tested before saving
+3. **Select a database** — VibeSql loads the full schema into the sidebar
+4. **Ask in plain English** — type something like *"show all open issues assigned to someone, sorted by date"* and click **Generate SQL**
+5. **Review and run** — the generated SQL appears in the editor; press **Run** or `Ctrl+Enter` to execute
+6. **Results appear as a table** — with horizontal scroll for wide result sets
+
+![Settings](screenshots/01-settings-light.png)
+![Settings dark](screenshots/02-settings-dark.png)
 
 ## Features
 
-- **AI query generation** — describe what you want in plain English, Claude writes the SQL
-- **Schema sidebar** — browse all tables and columns of the selected database
-- **SQL editor** — write and run queries directly, with keyboard shortcuts
-- **Dark / light theme** — toggle in the header, persisted in localStorage
-- **Secure credential storage** — host/user in localStorage, password/API key in sessionStorage only
-- **CSRF protection** — all API calls validated server-side
-- **SQL safety checks** — blocks `INTO OUTFILE`, `LOAD_FILE`, UDFs and other dangerous statements
+- **Single file** — everything is in `index.php`. No composer, no npm, no build step.
+- **AI SQL generation** — describe what you want, Claude writes the query using your actual schema as context
+- **Schema sidebar** — browse all tables and columns at a glance
+- **Dark / light theme** — follows your OS preference automatically; toggle manually at any time
+- **Secure credential storage** — host and user saved in `localStorage`; password and API key in `sessionStorage` only (cleared when the tab closes)
+- **CSRF protection** — every API call is validated server-side against a session token; the endpoint rejects requests from any other origin
+- **SQL safety checks** — blocks `INTO OUTFILE`, `LOAD_FILE`, UDFs, and other file/exec primitives
 
 ## Requirements
 
-- PHP 8.1+ with `mysqli` extension
+- PHP 8.1+ with the `mysqli` extension
 - MySQL / MariaDB
-- A web server (Apache, Nginx, or `php -S localhost:8080`)
+- A web server (Apache, Nginx) or `php -S localhost:8080`
 
 ## Setup
 
-1. Drop `index.php` into any web-served directory
-2. Open it in your browser
-3. Enter your MySQL credentials and (optionally) an Anthropic API key in the settings modal
+```bash
+# Clone or download
+git clone https://github.com/yourname/vibesql.git
+cd vibesql
 
-No composer, no npm, no build step — just one file.
+# Serve with the built-in PHP server
+php -S localhost:8080
+```
+
+Then open `http://localhost:8080` in your browser. On first load the settings modal appears — enter your MySQL credentials and optionally an Anthropic API key for AI queries.
 
 ## Keyboard shortcuts
 
@@ -36,6 +56,7 @@ No composer, no npm, no build step — just one file.
 
 ## Security notes
 
-- Passwords and API keys are stored in **sessionStorage** and are cleared when the browser tab closes
-- All API requests include a session CSRF token — the endpoint rejects requests from other origins
-- SQL execution uses `mysqli::query()` (single-statement only — no stacked queries)
+- Passwords and API keys live in **sessionStorage** — cleared automatically when the browser tab closes
+- All API requests carry a session CSRF token — the PHP endpoint rejects anything without a valid token
+- `mysqli::query()` runs a single statement only — stacked queries (`;DROP TABLE`) are not possible
+- Dangerous SQL patterns (`INTO OUTFILE`, `LOAD_FILE`, `sys_exec`, etc.) are blocked before execution
