@@ -4,6 +4,8 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 
 ![Light mode](screenshots/03-workspace-light.png)
 ![Dark mode](screenshots/04-workspace-dark.png)
+![SQL highlighting light](screenshots/05-highlight-light.png)
+![SQL highlighting dark](screenshots/06-highlight-dark.png)
 
 ## How it works
 
@@ -21,6 +23,7 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 
 - **Single file** — everything is in `index.php`. No composer, no npm, no build step.
 - **AI SQL generation** — describe what you want, Claude writes the query using your actual schema as context
+- **SQL syntax highlighting** — PrismJS (SQL grammar, light and dark themes) is embedded directly in `index.php` with no CDN calls (see [Supply-chain safety](#supply-chain-safety))
 - **Schema sidebar** — browse all tables and columns at a glance
 - **Dark / light theme** — follows your OS preference automatically; toggle manually at any time
 - **Secure credential storage** — host and user saved in `localStorage`; password and API key in `sessionStorage` only (cleared when the tab closes)
@@ -60,6 +63,24 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 - All API requests carry a session CSRF token — the PHP endpoint rejects anything without a valid token
 - `mysqli::query()` runs a single statement only — stacked queries (`;DROP TABLE`) are not possible
 - Dangerous SQL patterns (`INTO OUTFILE`, `LOAD_FILE`, `sys_exec`, etc.) are blocked before execution
+
+## Supply-chain safety
+
+VibeSql loads **zero external resources at runtime**. No CDN, no third-party scripts, no remote fonts.
+
+The SQL syntax highlighter uses [PrismJS](https://prismjs.com/) — but instead of loading it from a CDN like `cdn.jsdelivr.net` or `cdnjs.cloudflare.com`, the minified source of `prism.min.js`, `prism-sql.min.js`, `prism-coy.css` (light theme), and `prism-tomorrow.css` (dark theme) is pasted directly inside `index.php`.
+
+**Why this matters:** a CDN-hosted script can be silently replaced or tampered with at any time. If you drop VibeSql on a server that handles real credentials, a compromised CDN could inject code that exfiltrates your database password or API key. By embedding all JavaScript and CSS verbatim, the only thing that runs in the browser is exactly what you can read in the file you deployed.
+
+To verify or update the embedded Prism build:
+
+```bash
+# Download fresh copies and diff against what is in index.php
+curl -s https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js > /tmp/prism.min.js
+curl -s https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js > /tmp/prism-sql.min.js
+```
+
+Then compare the content of those files against the `<script>` blocks in `index.php`.
 
 ## Reporting security issues
 
