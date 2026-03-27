@@ -528,6 +528,10 @@ table.rt td:last-child{border-right:none}
       </div>
     </div>
     <div class="modal-ftr">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0">
+        <input type="checkbox" id="cfgRemember" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer">
+        <span style="font-size:12px;color:var(--muted)">Remember credentials on this device</span>
+      </label>
       <div class="conn-status info" id="connStatus">Enter your MySQL credentials above.</div>
       <button class="btn-connect" id="btnConnect" onclick="saveAndConnect()">
         Test Connection &amp; Save
@@ -695,13 +699,13 @@ async function api(action, extra = {}) {
 
 // ── Settings ──────────────────────────────────
 function openSettings() {
-  document.getElementById('cfgHost').value   = state.host   || LS.get('host')  || '';
-  document.getElementById('cfgPort').value   = LS.get('port') || '';
-  document.getElementById('cfgUser').value   = state.user   || LS.get('user')  || '';
-  // Sensitive fields: read from sessionStorage (will be empty after tab close)
-  document.getElementById('cfgPass').value   = state.pass   || SS.get('pass')   || '';
-  document.getElementById('cfgApiKey').value = state.apiKey || SS.get('apiKey') || '';
-  document.getElementById('cfgModel').value  = state.model  || LS.get('model')  || 'claude-haiku-4-5-20251001';
+  document.getElementById('cfgHost').value    = state.host   || LS.get('host')   || '';
+  document.getElementById('cfgPort').value    = LS.get('port') || '';
+  document.getElementById('cfgUser').value    = state.user   || LS.get('user')   || '';
+  document.getElementById('cfgPass').value    = state.pass   || LS.get('pass')   || SS.get('pass')   || '';
+  document.getElementById('cfgApiKey').value  = state.apiKey || LS.get('apiKey') || SS.get('apiKey') || '';
+  document.getElementById('cfgModel').value   = state.model  || LS.get('model')  || 'claude-haiku-4-5-20251001';
+  document.getElementById('cfgRemember').checked = LS.get('remember') === '1';
   setStatus('Enter your MySQL credentials above.', 'info');
   document.getElementById('overlay').classList.remove('hidden');
   document.getElementById('modalClose').style.display = state.host ? '' : 'none';
@@ -739,13 +743,20 @@ async function saveAndConnect() {
     return;
   }
 
-  // Non-sensitive → localStorage (persists across sessions)
+  const remember = document.getElementById('cfgRemember').checked;
+  LS.set('remember', remember ? '1' : '0');
+  // Always save non-sensitive to localStorage
   LS.set('host',  host);
   LS.set('user',  user);
   LS.set('model', model);
-  // Sensitive → sessionStorage (cleared when tab/browser closes)
-  SS.set('pass',   pass);
-  SS.set('apiKey', apiKey);
+  // Sensitive: localStorage if "remember" checked, sessionStorage only otherwise
+  if (remember) {
+    LS.set('pass', pass); LS.set('apiKey', apiKey);
+    SS.del('pass'); SS.del('apiKey');
+  } else {
+    SS.set('pass', pass); SS.set('apiKey', apiKey);
+    LS.del('pass'); LS.del('apiKey');
+  }
 
   state.apiKey    = apiKey;
   state.model     = model;
@@ -1286,12 +1297,11 @@ function setBtn(id, disabled, html) {
   const user   = LS.get('user');
   const model  = LS.get('model')  || 'claude-haiku-4-5-20251001';
   const db     = LS.get('db')     || '';
-  // Sensitive – from sessionStorage (empty if tab was closed and reopened)
-  const pass   = SS.get('pass')   || '';
-  const apiKey = SS.get('apiKey') || '';
+  // Sensitive – localStorage if "remember" was checked, otherwise sessionStorage
+  const pass   = LS.get('pass')   || SS.get('pass')   || '';
+  const apiKey = LS.get('apiKey') || SS.get('apiKey') || '';
 
   if (!host || !user || !pass) {
-    // First run or session expired – show modal, can't be closed
     document.getElementById('modalClose').style.display = 'none';
     openSettings();
     if (host && user && !pass) setStatus('Session expired. Please re-enter your password.', 'info');
