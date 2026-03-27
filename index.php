@@ -717,7 +717,8 @@ function closeSettings() {
 }
 
 async function saveAndConnect() {
-  const host   = document.getElementById('cfgHost').value.trim()   || 'localhost';
+  const host   = (document.getElementById('cfgHost').value.trim() || 'localhost')
+               + ':' + (document.getElementById('cfgPort').value.trim() || '3306');
   const user   = document.getElementById('cfgUser').value.trim();
   const pass   = document.getElementById('cfgPass').value;
   const apiKey = document.getElementById('cfgApiKey').value.trim();
