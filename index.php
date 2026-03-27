@@ -404,6 +404,32 @@ table.rt td:last-child{border-right:none}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);animation:fadeIn .15s}
 .overlay.hidden{display:none}
 .modal{background:var(--bg1);border:1px solid var(--line);border-radius:10px;width:100%;max-width:460px;box-shadow:var(--shadow-lg);animation:slideUp .2s}
+
+/* ── row detail modal ────────────────────────── */
+#rowOverlay{z-index:1100}
+.row-modal{background:var(--bg1);border:1px solid var(--line);border-radius:10px;width:100%;max-width:560px;max-height:86vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:slideUp .2s}
+.row-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);flex-shrink:0}
+.row-modal-hdr h2{font-size:14px;font-weight:700;color:var(--hi);font-family:monospace}
+.row-modal-body{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.row-modal-body::-webkit-scrollbar{width:4px}
+.row-modal-body::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.row-field{display:flex;flex-direction:column;gap:3px}
+.row-field label{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:5px}
+.row-field label .pk-badge{background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.3);color:var(--amber);border-radius:3px;padding:0 4px;font-size:9px}
+.row-field input,.row-field textarea{background:var(--bg0);border:1px solid var(--line);border-radius:6px;color:var(--hi);font-family:monospace;font-size:12.5px;padding:7px 10px;outline:none;transition:border-color .15s;width:100%}
+.row-field input:focus,.row-field textarea:focus{border-color:var(--accent)}
+.row-field input[readonly],.row-field textarea[readonly]{color:var(--muted);cursor:default;background:var(--bg2)}
+.row-field textarea{resize:vertical;min-height:60px;max-height:160px}
+.row-null{color:var(--dim);font-style:italic;font-size:12px}
+.row-modal-ftr{padding:12px 20px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.row-modal-ftr .ftr-left{font-size:11px;color:var(--muted);font-family:monospace;min-height:16px}
+.row-modal-ftr .ftr-left.ok{color:var(--green)}
+.row-modal-ftr .ftr-left.error{color:var(--red)}
+.btn-save{display:flex;align-items:center;gap:6px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:600;padding:7px 16px;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.88}
+.btn-save:disabled{opacity:.5;pointer-events:none}
+table.rt tbody tr.clickable-row{cursor:pointer}
+table.rt tbody tr.clickable-row:hover td{color:var(--accent)}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0}
 .modal-hdr h2{font-size:16px;font-weight:700;color:var(--hi)}
 .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;transition:color .15s}
@@ -589,6 +615,27 @@ table.rt td:last-child{border-right:none}
       </button>
       <div style="text-align:center">
         <button onclick="resetTheme()" style="background:none;border:none;color:var(--dim);font-size:11px;cursor:pointer;text-decoration:underline;padding:2px" title="Follow OS light/dark preference">Reset theme to system default</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ROW DETAIL MODAL ───────────────────────── -->
+<div class="overlay hidden" id="rowOverlay" onclick="if(event.target===this)closeRowModal()">
+  <div class="row-modal">
+    <div class="row-modal-hdr">
+      <h2 id="rowModalTitle">Row</h2>
+      <button class="modal-close" onclick="closeRowModal()">✕</button>
+    </div>
+    <div class="row-modal-body" id="rowModalBody"></div>
+    <div class="row-modal-ftr">
+      <span class="ftr-left" id="rowModalStatus"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm" onclick="closeRowModal()">Close</button>
+        <button class="btn-save" id="btnSaveRow" onclick="saveRow()" style="display:none">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save changes
+        </button>
       </div>
     </div>
   </div>
@@ -1029,12 +1076,14 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1, page = 0) {
     return `<th class="sortable${active ? ' sort-active' : ''}" onclick="sortBy(${i})">${escH(c)}${arrow}</th>`;
   }).join('');
 
-  const tb = pageRows.map(row =>
-    '<tr>' + row.map(v =>
+  const tb = pageRows.map((row, ri) => {
+    const absIdx = page * PAGE_SIZE + ri;
+    const tds = row.map(v =>
       v === null ? '<td><span class="null-v">NULL</span></td>'
                 : `<td>${escH(String(v))}</td>`
-    ).join('') + '</tr>'
-  ).join('');
+    ).join('');
+    return `<tr class="clickable-row" onclick="openRowModal(${absIdx})">${tds}</tr>`;
+  }).join('');
 
   document.getElementById('resultsArea').innerHTML =
     `<div class="result-wrap"><table class="rt"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`;
@@ -1108,6 +1157,130 @@ function clearResults() {
     </div>`;
   document.getElementById('resultsToolbar').style.display = 'none';
   document.getElementById('paginationBar').style.display  = 'none';
+}
+
+// ── Row detail / edit modal ───────────────────
+let rowModalData = { cols: [], row: [], tableName: '', pkCols: [] };
+
+function detectTableFromSql(sql) {
+  const m = sql.replace(/\/\*.*?\*\//gs,'').replace(/--[^\n]*/g,'')
+               .match(/\bFROM\s+`?(\w+)`?/i);
+  return m ? m[1] : null;
+}
+
+function openRowModal(absIdx) {
+  const row  = lastSorted[absIdx];
+  const cols = lastCols;
+  if (!row || !cols.length) return;
+
+  // Try to detect which table the query hit
+  const sql  = document.getElementById('sqlInput').value.trim();
+  const tbl  = detectTableFromSql(sql);
+  const schemaCols = (tbl && state.schema[tbl]) ? state.schema[tbl] : [];
+  const pkCols = schemaCols.filter(c => c.COLUMN_KEY === 'PRI').map(c => c.COLUMN_NAME);
+
+  rowModalData = { cols, row, tableName: tbl, pkCols };
+
+  document.getElementById('rowModalTitle').textContent = tbl ? tbl + ' — row detail' : 'Row detail';
+
+  const body = document.getElementById('rowModalBody');
+  body.innerHTML = cols.map((col, i) => {
+    const val  = row[i];
+    const sc   = schemaCols.find(c => c.COLUMN_NAME === col);
+    const isPk = pkCols.includes(col);
+    const isLong = sc && /text|blob|json/i.test(sc.COLUMN_TYPE);
+    const pkBadge = isPk ? '<span class="pk-badge">PK</span>' : '';
+    const label = `<label>${escH(col)}${pkBadge}${sc ? `<span style="color:var(--dim);font-weight:400;text-transform:none;margin-left:4px">${escH(sc.COLUMN_TYPE)}</span>` : ''}</label>`;
+    const safeVal = val === null ? '' : String(val);
+    const field = isLong
+      ? `<textarea data-col="${escH(col)}" data-idx="${i}"${isPk ? ' readonly' : ''}>${escH(safeVal)}</textarea>`
+      : `<input type="text" data-col="${escH(col)}" data-idx="${i}"${isPk ? ' readonly' : ''} value="${escH(safeVal)}">`;
+    return `<div class="row-field">${label}${field}</div>`;
+  }).join('');
+
+  // Show Save button only if we know the table and it has a PK
+  const canSave = tbl && pkCols.length > 0 && !readOnly;
+  document.getElementById('btnSaveRow').style.display = canSave ? '' : 'none';
+  document.getElementById('rowModalStatus').textContent =
+    !tbl ? 'Read-only: table not detected (complex query).' :
+    !pkCols.length ? 'Read-only: no primary key found.' :
+    readOnly ? 'Read-only mode is on.' : '';
+  document.getElementById('rowModalStatus').className = 'ftr-left';
+
+  document.getElementById('rowOverlay').classList.remove('hidden');
+}
+
+function closeRowModal() {
+  document.getElementById('rowOverlay').classList.add('hidden');
+  document.getElementById('rowModalStatus').textContent = '';
+}
+
+async function saveRow() {
+  const { cols, row, tableName, pkCols } = rowModalData;
+  if (!tableName || !pkCols.length) return;
+
+  const inputs = document.getElementById('rowModalBody').querySelectorAll('[data-col]');
+  const setClauses = [], setVals = [];
+  const whereClauses = [], whereVals = [];
+
+  inputs.forEach(el => {
+    const col = el.getAttribute('data-col');
+    const idx = parseInt(el.getAttribute('data-idx'));
+    const newVal = el.value;
+    const origVal = row[idx];
+
+    if (pkCols.includes(col)) {
+      whereClauses.push('`' + col + '` = ?');
+      whereVals.push(origVal === null ? 'NULL' : origVal);
+    } else {
+      setClauses.push('`' + col + '` = ?');
+      setVals.push(newVal === '' && origVal === null ? '__NULL__' : newVal);
+    }
+  });
+
+  if (!setClauses.length) {
+    rowModalStatus('Nothing to update (all editable fields unchanged).', 'error');
+    return;
+  }
+
+  // Build parameterised-style SQL (server side uses real_escape_string)
+  const allVals = [...setVals, ...whereVals];
+  let sql = `UPDATE \`${tableName}\` SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')}`;
+
+  // Substitute placeholders with escaped values (JS side — server validates too)
+  let i = 0;
+  const sqlFinal = sql.replace(/\?/g, () => {
+    const v = allVals[i++];
+    if (v === '__NULL__') return 'NULL';
+    return "'" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+  });
+
+  const btn = document.getElementById('btnSaveRow');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Saving…';
+
+  const r = await api('query', { sql: sqlFinal });
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Save changes';
+
+  if (!r.ok) {
+    rowModalStatus(r.error, 'error');
+  } else {
+    rowModalStatus(`Saved — ${r.affected} row(s) affected.`, 'ok');
+    // Update local lastSorted so the table reflects changes without re-query
+    const body = document.getElementById('rowModalBody');
+    body.querySelectorAll('[data-col]').forEach(el => {
+      const idx = parseInt(el.getAttribute('data-idx'));
+      lastSorted.forEach(sr => { if (sr === rowModalData.row) sr[idx] = el.value; });
+    });
+  }
+}
+
+function rowModalStatus(msg, cls) {
+  const el = document.getElementById('rowModalStatus');
+  el.textContent = msg;
+  el.className = 'ftr-left ' + cls;
 }
 
 // ── Query history ─────────────────────────────
