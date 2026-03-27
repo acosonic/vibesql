@@ -319,11 +319,14 @@ header{height:44px;background:var(--bg1);border-bottom:1px solid var(--line);dis
 [data-theme="dark"] .msg-bar.error{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.15)}
 
 /* ── results ─────────────────────────────────── */
-.results{flex:1;overflow:auto}
-.results::-webkit-scrollbar{width:6px;height:6px}
-.results::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.results{flex:1;overflow:auto;overflow-x:auto}
+.results::-webkit-scrollbar{width:10px;height:10px}
+.results::-webkit-scrollbar-track{background:var(--bg2)}
+.results::-webkit-scrollbar-thumb{background:var(--dim);border-radius:6px;border:2px solid var(--bg2)}
+.results::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+.results::-webkit-scrollbar-corner{background:var(--bg2)}
 .result-wrap{min-width:max-content}
-table.rt{width:100%;border-collapse:collapse;font-family:monospace;font-size:12px}
+table.rt{width:max-content;min-width:100%;border-collapse:collapse;font-family:monospace;font-size:12px}
 table.rt thead tr{background:var(--bg2);border-bottom:2px solid var(--line);position:sticky;top:0;z-index:10}
 table.rt th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-right:1px solid var(--line)}
 table.rt th:last-child{border-right:none}
