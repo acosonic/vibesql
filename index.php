@@ -343,6 +343,53 @@ table.rt td:last-child{border-right:none}
 .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);gap:10px;padding:40px;font-size:12.5px}
 .empty-state svg{opacity:.25}
 
+/* ── results toolbar ─────────────────────────── */
+.results-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid var(--line);background:var(--bg1);flex-shrink:0}
+.results-info{font-size:11.5px;color:var(--muted);font-family:monospace;flex:1}
+.results-info strong{color:var(--text)}
+.btn-sm{display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:11px;font-weight:500;padding:4px 9px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-sm:hover{border-color:var(--accent);color:var(--text)}
+.btn-sm svg{flex-shrink:0}
+.btn-sm.active{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.3);color:var(--red)}
+[data-theme="dark"] .btn-sm.active{background:rgba(248,113,113,.1)}
+
+/* ── pagination ──────────────────────────────── */
+.pagination{display:flex;align-items:center;gap:4px;padding:8px 14px;border-top:1px solid var(--line);background:var(--bg1);flex-shrink:0;justify-content:center}
+.pg-btn{background:none;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:12px;font-family:monospace;padding:4px 10px;cursor:pointer;transition:all .15s;min-width:32px}
+.pg-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.pg-btn:disabled{opacity:.35;cursor:default}
+.pg-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.pg-info{font-size:11.5px;color:var(--muted);font-family:monospace;padding:0 8px}
+
+/* ── history dropdown ────────────────────────── */
+.history-wrap{position:relative}
+.history-drop{position:absolute;top:calc(100% + 4px);left:0;width:480px;max-width:90vw;background:var(--bg1);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:fadeIn .15s}
+.history-drop.hidden{display:none}
+.history-drop-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line)}
+.history-drop-hdr span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.history-drop-hdr button{background:none;border:none;font-size:11px;color:var(--dim);cursor:pointer}
+.history-drop-hdr button:hover{color:var(--red)}
+.history-list{max-height:260px;overflow-y:auto}
+.history-item{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .1s}
+.history-item:last-child{border-bottom:none}
+.history-item:hover{background:var(--bg2)}
+.history-item pre{flex:1;font-family:monospace;font-size:11.5px;color:var(--body);white-space:pre-wrap;word-break:break-all;margin:0;line-height:1.4}
+.history-item time{font-size:10px;color:var(--dim);white-space:nowrap;margin-top:1px;flex-shrink:0}
+.history-empty{padding:20px;text-align:center;font-size:12px;color:var(--dim);font-family:monospace}
+
+/* ── read-only badge ─────────────────────────── */
+.ro-badge{display:none;align-items:center;gap:5px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--red);font-weight:600}
+[data-theme="dark"] .ro-badge{background:rgba(248,113,113,.1)}
+.ro-badge.on{display:flex}
+
+/* ── autocomplete ────────────────────────────── */
+.ac-drop{position:absolute;background:var(--bg1);border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow-lg);z-index:300;min-width:180px;max-width:300px;overflow:hidden;font-family:monospace;font-size:12.5px}
+.ac-drop.hidden{display:none}
+.ac-item{padding:6px 12px;cursor:pointer;color:var(--body);display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .1s}
+.ac-item:hover,.ac-item.sel{background:var(--accent);color:#fff}
+.ac-item:hover .ac-kind,.ac-item.sel .ac-kind{color:rgba(255,255,255,.7)}
+.ac-kind{font-size:10px;color:var(--dim)}
+
 /* ── DB picker ───────────────────────────────── */
 .picker-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
 .picker-card{background:var(--bg1);border:1px solid var(--line);border-radius:10px;padding:32px 36px;width:100%;max-width:400px;text-align:center;box-shadow:var(--shadow)}
@@ -407,7 +454,17 @@ table.rt td:last-child{border-right:none}
     <select id="dbSelect" onchange="switchDb(this.value)"></select>
   </div>
 
+  <div class="ro-badge" id="roBadge">
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    Read-only
+  </div>
+
   <div class="header-gap"></div>
+
+  <button class="icon-btn" id="roBtn" onclick="toggleReadOnly()" title="Toggle read-only mode">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <span>Read-only</span>
+  </button>
 
   <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">
     <svg id="themeIcon" width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -525,17 +582,35 @@ table.rt td:last-child{border-right:none}
 
     <!-- SQL -->
     <div class="sql-section">
-      <div class="sec-label">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 5l-2 3 2 3M12 5l2 3-2 3M9 3l-2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        SQL Query
+      <div class="sec-label" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:6px">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 5l-2 3 2 3M12 5l2 3-2 3M9 3l-2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          SQL Query
+        </span>
+        <div class="history-wrap">
+          <button class="btn-sm" id="historyBtn" onclick="toggleHistory()" title="Query history">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 3v5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 8a6.5 6.5 0 101 -3.5L1 3v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            History
+          </button>
+          <div class="history-drop hidden" id="historyDrop">
+            <div class="history-drop-hdr">
+              <span>Recent queries</span>
+              <button onclick="clearHistory()">Clear all</button>
+            </div>
+            <div class="history-list" id="historyList"></div>
+          </div>
+        </div>
       </div>
-      <div class="sql-wrap">
-        <textarea id="sqlInput" class="sql-input"
-          placeholder="SELECT * FROM users LIMIT 20;&#10;&#10;-- Ctrl+Enter to run"
-          spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+      <div style="position:relative">
+        <div class="sql-wrap">
+          <textarea id="sqlInput" class="sql-input"
+            placeholder="SELECT * FROM users LIMIT 20;&#10;&#10;-- Ctrl+Enter to run"
+            spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+        </div>
+        <div class="ac-drop hidden" id="acDrop"></div>
       </div>
       <div class="sql-footer">
-        <span class="hints"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run</span>
+        <span class="hints"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Space</kbd> autocomplete</span>
         <button class="btn-run" id="btnRun" onclick="doQuery()">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
           Run
@@ -546,6 +621,15 @@ table.rt td:last-child{border-right:none}
     <!-- msg -->
     <div id="msgBar" style="display:none" class="msg-bar"></div>
 
+    <!-- results toolbar -->
+    <div class="results-toolbar" id="resultsToolbar" style="display:none">
+      <span class="results-info" id="resultsInfo"></span>
+      <button class="btn-sm" onclick="exportCsv()">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v9M5 8l3 3 3-3M2 13h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export CSV
+      </button>
+    </div>
+
     <!-- results -->
     <div class="results" id="resultsArea">
       <div class="empty-state">
@@ -553,6 +637,9 @@ table.rt td:last-child{border-right:none}
         <span>Run a query to see results</span>
       </div>
     </div>
+
+    <!-- pagination -->
+    <div class="pagination" id="paginationBar" style="display:none"></div>
 
   </main>
 </div>
@@ -781,20 +868,47 @@ function toggleTbl(btn) {
   btn.nextElementSibling.classList.toggle('open');
 }
 
+// ── Read-only mode ────────────────────────────
+let readOnly = LS.get('readOnly') === '1';
+function toggleReadOnly() {
+  readOnly = !readOnly;
+  LS.set('readOnly', readOnly ? '1' : '0');
+  updateRoUi();
+}
+function updateRoUi() {
+  document.getElementById('roBadge').classList.toggle('on', readOnly);
+  document.getElementById('roBtn').classList.toggle('active', readOnly);
+}
+
 // ── Query ─────────────────────────────────────
 async function doQuery() {
   const sql = document.getElementById('sqlInput').value.trim();
   if (!sql) return;
+
+  if (readOnly) {
+    const first = sql.replace(/\/\*.*?\*\//gs, '').replace(/--[^\n]*/g, '').trim().toUpperCase();
+    if (!/^SELECT\b/.test(first)) {
+      showMsg('Read-only mode: only SELECT queries are allowed.', 'error');
+      return;
+    }
+  }
+
   setBtn('btnRun', true, '<span class="spin"></span> Running…');
   hideMsg();
+  const t0 = Date.now();
   const r = await api('query', { sql });
+  const ms = Date.now() - t0;
   setBtn('btnRun', false, '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Run');
+
   if (!r.ok) { showMsg(r.error, 'error'); clearResults(); return; }
+
+  saveHistory(sql);
+
   if (r.type === 'write') {
-    showMsg('Query OK – ' + r.affected + ' row(s) affected.', 'ok');
+    showMsg(`Query OK – ${r.affected} row(s) affected. (${ms}ms)`, 'ok');
     clearResults();
   } else {
-    showMsg(r.rows.length + ' row(s) returned.', 'ok');
+    showMsg(`${r.rows.length} row(s) returned in ${ms}ms.`, 'ok');
     renderTable(r.columns, r.rows);
   }
 }
@@ -822,19 +936,25 @@ async function doAsk() {
 }
 
 // ── Render table ──────────────────────────────
-let sortState = { col: null, dir: 1 }; // dir: 1=asc, -1=desc
-let lastCols = [], lastRows = [];
+const PAGE_SIZE = 50;
+let sortState = { col: null, dir: 1 };
+let lastCols = [], lastRows = [], lastSorted = [];
+let currentPage = 0;
 
-function renderTable(cols, rows, sortCol = null, sortDir = 1) {
+function renderTable(cols, rows, sortCol = null, sortDir = 1, page = 0) {
   lastCols = cols; lastRows = rows;
   sortState = { col: sortCol, dir: sortDir };
+  currentPage = page;
 
-  const sorted = sortCol === null ? rows : [...rows].sort((a, b) => {
+  lastSorted = sortCol === null ? rows : [...rows].sort((a, b) => {
     const av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
     const an = parseFloat(av), bn = parseFloat(bv);
     const cmp = (!isNaN(an) && !isNaN(bn)) ? an - bn : String(av).localeCompare(String(bv));
     return cmp * sortDir;
   });
+
+  const totalPages = Math.ceil(lastSorted.length / PAGE_SIZE);
+  const pageRows   = lastSorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const th = cols.map((c, i) => {
     const active = i === sortCol;
@@ -842,7 +962,7 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1) {
     return `<th class="sortable${active ? ' sort-active' : ''}" onclick="sortBy(${i})">${escH(c)}${arrow}</th>`;
   }).join('');
 
-  const tb = sorted.map(row =>
+  const tb = pageRows.map(row =>
     '<tr>' + row.map(v =>
       v === null ? '<td><span class="null-v">NULL</span></td>'
                 : `<td>${escH(String(v))}</td>`
@@ -851,19 +971,189 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1) {
 
   document.getElementById('resultsArea').innerHTML =
     `<div class="result-wrap"><table class="rt"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`;
+
+  // toolbar
+  const toolbar = document.getElementById('resultsToolbar');
+  toolbar.style.display = 'flex';
+  const start = page * PAGE_SIZE + 1, end = Math.min((page + 1) * PAGE_SIZE, lastSorted.length);
+  document.getElementById('resultsInfo').innerHTML =
+    `<strong>${lastSorted.length}</strong> row${lastSorted.length !== 1 ? 's' : ''}` +
+    (totalPages > 1 ? ` &nbsp;·&nbsp; showing <strong>${start}–${end}</strong>` : '');
+
+  // pagination
+  const pgBar = document.getElementById('paginationBar');
+  if (totalPages <= 1) { pgBar.style.display = 'none'; return; }
+  pgBar.style.display = 'flex';
+
+  const maxBtns = 7;
+  let pages = [];
+  if (totalPages <= maxBtns) {
+    pages = Array.from({length: totalPages}, (_, i) => i);
+  } else {
+    pages = [0];
+    let lo = Math.max(1, page - 2), hi = Math.min(totalPages - 2, page + 2);
+    if (lo > 1) pages.push('…');
+    for (let i = lo; i <= hi; i++) pages.push(i);
+    if (hi < totalPages - 2) pages.push('…');
+    pages.push(totalPages - 1);
+  }
+
+  pgBar.innerHTML =
+    `<button class="pg-btn" onclick="goPage(${page - 1})" ${page === 0 ? 'disabled' : ''}>‹</button>` +
+    pages.map(p => p === '…'
+      ? `<span class="pg-info">…</span>`
+      : `<button class="pg-btn${p === page ? ' active' : ''}" onclick="goPage(${p})">${p + 1}</button>`
+    ).join('') +
+    `<button class="pg-btn" onclick="goPage(${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}>›</button>`;
 }
 
 function sortBy(col) {
   const dir = sortState.col === col ? -sortState.dir : 1;
-  renderTable(lastCols, lastRows, col, dir);
+  renderTable(lastCols, lastRows, col, dir, 0);
+}
+
+function goPage(p) {
+  const totalPages = Math.ceil(lastSorted.length / PAGE_SIZE);
+  if (p < 0 || p >= totalPages) return;
+  renderTable(lastCols, lastRows, sortState.col, sortState.dir, p);
+  document.getElementById('resultsArea').scrollTop = 0;
+}
+
+// ── CSV export ────────────────────────────────
+function exportCsv() {
+  if (!lastCols.length) return;
+  const escape = v => '"' + String(v === null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [lastCols.map(escape).join(',')];
+  lastSorted.forEach(row => lines.push(row.map(escape).join(',')));
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: (state.db || 'results') + '.csv' });
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function clearResults() {
+  lastCols = []; lastRows = []; lastSorted = [];
   document.getElementById('resultsArea').innerHTML =
     `<div class="empty-state">
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="4" width="32" height="32" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 14h32M14 14v22M4 24h32" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2"/></svg>
       <span>Run a query to see results</span>
     </div>`;
+  document.getElementById('resultsToolbar').style.display = 'none';
+  document.getElementById('paginationBar').style.display  = 'none';
+}
+
+// ── Query history ─────────────────────────────
+function saveHistory(sql) {
+  const h = JSON.parse(SS.get('queryHistory') || '[]').filter(x => x.sql !== sql);
+  h.unshift({ sql, ts: Date.now() });
+  SS.set('queryHistory', JSON.stringify(h.slice(0, 50)));
+}
+
+function toggleHistory() {
+  const drop = document.getElementById('historyDrop');
+  const hidden = drop.classList.toggle('hidden');
+  if (!hidden) renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const h = JSON.parse(SS.get('queryHistory') || '[]');
+  if (!h.length) { list.innerHTML = '<div class="history-empty">No history yet</div>'; return; }
+  list.innerHTML = h.map((item, i) => {
+    const ago = formatAgo(item.ts);
+    return `<div class="history-item" onclick="useHistory(${i})">
+      <pre>${escH(item.sql.length > 120 ? item.sql.slice(0, 120) + '…' : item.sql)}</pre>
+      <time>${ago}</time>
+    </div>`;
+  }).join('');
+}
+
+function useHistory(i) {
+  const h = JSON.parse(SS.get('queryHistory') || '[]');
+  if (h[i]) {
+    document.getElementById('sqlInput').value = h[i].sql;
+    SS.set('lastSql', h[i].sql);
+  }
+  document.getElementById('historyDrop').classList.add('hidden');
+}
+
+function clearHistory() {
+  SS.del('queryHistory');
+  renderHistory();
+}
+
+function formatAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)  return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+// Close history when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.history-wrap'))
+    document.getElementById('historyDrop')?.classList.add('hidden');
+});
+
+// ── Autocomplete ──────────────────────────────
+let acItems = [], acIndex = -1;
+
+function buildAcList() {
+  const items = [];
+  Object.keys(state.schema).forEach(tbl => {
+    items.push({ text: tbl, kind: 'table' });
+    state.schema[tbl].forEach(c => items.push({ text: c.COLUMN_NAME, kind: tbl }));
+  });
+  return items;
+}
+
+function showAc(filter) {
+  const drop = document.getElementById('acDrop');
+  const all  = buildAcList();
+  const f    = filter.toLowerCase();
+  const matches = all.filter(x => x.text.toLowerCase().startsWith(f) && x.text.toLowerCase() !== f).slice(0, 10);
+  if (!matches.length) { drop.classList.add('hidden'); return; }
+
+  acItems = matches; acIndex = -1;
+  drop.className = 'ac-drop';
+  drop.innerHTML = matches.map((m, i) =>
+    `<div class="ac-item" data-i="${i}" onmousedown="pickAc(${i})">${escH(m.text)}<span class="ac-kind">${escH(m.kind)}</span></div>`
+  ).join('');
+
+  // Position below textarea
+  const ta = document.getElementById('sqlInput');
+  const rect = ta.getBoundingClientRect();
+  const parent = ta.closest('div[style]') || ta.parentElement;
+  drop.style.top  = (ta.offsetTop + ta.offsetHeight + 2) + 'px';
+  drop.style.left = '12px';
+}
+
+function hideAc() {
+  document.getElementById('acDrop').classList.add('hidden');
+  acItems = []; acIndex = -1;
+}
+
+function pickAc(i) {
+  const item = acItems[i];
+  if (!item) return;
+  const ta   = document.getElementById('sqlInput');
+  const pos  = ta.selectionStart;
+  const text = ta.value;
+  // Find start of current word
+  let start = pos;
+  while (start > 0 && /\w/.test(text[start - 1])) start--;
+  ta.value = text.slice(0, start) + item.text + text.slice(pos);
+  ta.selectionStart = ta.selectionEnd = start + item.text.length;
+  hideAc();
+  ta.focus();
+}
+
+function updateAcSelection() {
+  document.querySelectorAll('#acDrop .ac-item').forEach((el, i) => {
+    el.classList.toggle('sel', i === acIndex);
+  });
 }
 
 // ── Msg bar ───────────────────────────────────
@@ -922,6 +1212,11 @@ document.getElementById('sidebarToggle').addEventListener('click', () => {
 // ── Persist inputs across refresh (sessionStorage) ────
 document.getElementById('sqlInput').addEventListener('input', e => {
   SS.set('lastSql', e.target.value);
+  // Autocomplete trigger
+  const pos  = e.target.selectionStart;
+  const text = e.target.value.slice(0, pos);
+  const word = text.match(/\w+$/)?.[0] || '';
+  word.length >= 2 ? showAc(word) : hideAc();
 });
 document.getElementById('aiInput').addEventListener('input', e => {
   SS.set('lastPrompt', e.target.value);
@@ -935,13 +1230,29 @@ function restoreInputs() {
 }
 
 // ── Keyboard shortcuts ────────────────────────
+document.getElementById('sqlInput').addEventListener('keydown', e => {
+  // Autocomplete navigation
+  if (!document.getElementById('acDrop').classList.contains('hidden')) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = Math.min(acIndex + 1, acItems.length - 1); updateAcSelection(); return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); updateAcSelection(); return; }
+    if ((e.key === 'Enter' || e.key === 'Tab') && acIndex >= 0) { e.preventDefault(); pickAc(acIndex); return; }
+    if (e.key === 'Escape')    { hideAc(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
+    e.preventDefault();
+    const pos = e.target.selectionStart, text = e.target.value.slice(0, pos);
+    const word = text.match(/\w+$/)?.[0] || '';
+    word.length >= 1 ? showAc(word) : showAc('');
+  }
+});
+
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     if (document.activeElement === document.getElementById('aiInput')) doAsk();
     else doQuery();
   }
-  if (e.key === 'Escape') closeSettings();
+  if (e.key === 'Escape') { closeSettings(); hideAc(); }
 });
 
 // ── Utils ─────────────────────────────────────
@@ -956,6 +1267,9 @@ function setBtn(id, disabled, html) {
 
 // ── Boot ──────────────────────────────────────
 (function boot() {
+  // Read-only mode
+  updateRoUi();
+
   // Theme: use manual override if set, otherwise follow OS preference
   const saved  = LS.get('theme');
   const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
