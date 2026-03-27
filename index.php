@@ -430,6 +430,18 @@ table.rt td:last-child{border-right:none}
 .btn-save:disabled{opacity:.5;pointer-events:none}
 table.rt tbody tr.clickable-row{cursor:pointer}
 table.rt tbody tr.clickable-row:hover td{color:var(--accent)}
+table.rt td[data-pk]{cursor:default}
+table.rt td[data-pk]:hover{color:inherit!important}
+table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px solid var(--accent);outline-offset:-2px;padding:0!important}
+[data-theme="dark"] table.rt td.td-editing{background:rgba(59,130,246,.08)!important}
+.inline-edit-input{width:100%;height:100%;border:none;outline:none;background:transparent;color:var(--hi);font-family:monospace;font-size:12px;padding:7px 14px;box-sizing:border-box}
+
+/* ── floating inline save bar ────────────────── */
+.inline-save-bar{position:fixed;right:20px;bottom:28px;background:var(--bg1);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-lg);z-index:600;animation:slideUp .15s}
+.inline-save-bar.hidden{display:none}
+.inline-save-msg{font-size:11.5px;font-family:monospace;color:var(--muted);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inline-save-msg.ok{color:var(--green)}
+.inline-save-msg.error{color:var(--red)}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0}
 .modal-hdr h2{font-size:16px;font-weight:700;color:var(--hi)}
 .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:4px;transition:color .15s}
@@ -618,6 +630,16 @@ table.rt tbody tr.clickable-row:hover td{color:var(--accent)}
       </div>
     </div>
   </div>
+</div>
+
+<!-- ── INLINE SAVE BAR ────────────────────────── -->
+<div class="inline-save-bar hidden" id="inlineSaveBar">
+  <span class="inline-save-msg" id="inlineSaveMsg">Double-click to edit</span>
+  <button class="btn-sm" onclick="cancelInlineEdit()">Cancel</button>
+  <button class="btn-save" id="btnInlineSave" onclick="commitInlineEdit()">
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Save
+  </button>
 </div>
 
 <!-- ── ROW DETAIL MODAL ───────────────────────── -->
@@ -1078,15 +1100,17 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1, page = 0) {
 
   const tb = pageRows.map((row, ri) => {
     const absIdx = page * PAGE_SIZE + ri;
-    const tds = row.map(v =>
-      v === null ? '<td><span class="null-v">NULL</span></td>'
-                : `<td>${escH(String(v))}</td>`
-    ).join('');
-    return `<tr class="clickable-row" onclick="openRowModal(${absIdx})">${tds}</tr>`;
+    const tds = row.map((v, ci) => {
+      const content = v === null ? '<span class="null-v">NULL</span>' : escH(String(v));
+      return `<td data-col-idx="${ci}">${content}</td>`;
+    }).join('');
+    return `<tr class="clickable-row" data-abs-idx="${absIdx}">${tds}</tr>`;
   }).join('');
 
   document.getElementById('resultsArea').innerHTML =
     `<div class="result-wrap"><table class="rt"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`;
+
+  attachRowListeners();
 
   // toolbar
   const toolbar = document.getElementById('resultsToolbar');
@@ -1282,6 +1306,130 @@ function rowModalStatus(msg, cls) {
   el.textContent = msg;
   el.className = 'ftr-left ' + cls;
 }
+
+// ── Inline edit ───────────────────────────────
+let activeInlineEdit = null;
+let inlineClickTimer = null;
+
+function attachRowListeners() {
+  const sql = document.getElementById('sqlInput').value.trim();
+  const tbl = detectTableFromSql(sql);
+  const schemaCols = (tbl && state.schema[tbl]) ? state.schema[tbl] : [];
+  const pkSet = new Set(schemaCols.filter(c => c.COLUMN_KEY === 'PRI').map(c => c.COLUMN_NAME));
+
+  document.querySelectorAll('table.rt tbody tr.clickable-row').forEach(tr => {
+    const absIdx = parseInt(tr.dataset.absIdx);
+
+    // Single-click: open modal (delayed so double-click can cancel it)
+    tr.addEventListener('click', e => {
+      if (activeInlineEdit) return;
+      if (e.detail >= 2) return; // part of a double-click
+      clearTimeout(inlineClickTimer);
+      inlineClickTimer = setTimeout(() => openRowModal(absIdx), 220);
+    });
+
+    // Double-click on a cell: inline edit
+    tr.querySelectorAll('td').forEach((td, colIdx) => {
+      const colName = lastCols[colIdx];
+      if (pkSet.has(colName)) {
+        td.dataset.pk = '1';
+        td.title = 'Primary key — not editable';
+        return;
+      }
+      td.addEventListener('dblclick', e => {
+        clearTimeout(inlineClickTimer);
+        startInlineEdit(td, absIdx, colIdx, tbl, pkSet);
+      });
+    });
+  });
+}
+
+function startInlineEdit(td, absIdx, colIdx, tbl, pkSet) {
+  if (activeInlineEdit) cancelInlineEdit();
+  if (readOnly) { setInlineSaveMsg('Read-only mode is on.', 'error'); showInlineSaveBar(); return; }
+  if (!tbl)    { setInlineSaveMsg('Table not detected — complex query.', 'error'); showInlineSaveBar(); return; }
+  if (!pkSet.size) { setInlineSaveMsg('No primary key found.', 'error'); showInlineSaveBar(); return; }
+
+  const origVal = lastSorted[absIdx][colIdx];
+  const input = document.createElement('input');
+  input.className = 'inline-edit-input';
+  input.value = origVal === null ? '' : String(origVal);
+  td.classList.add('td-editing');
+  td.innerHTML = '';
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  activeInlineEdit = { td, absIdx, colIdx, origVal, tbl, pkSet, input };
+  setInlineSaveMsg(`Editing ${lastCols[colIdx]}…`, '');
+  showInlineSaveBar();
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitInlineEdit(); }
+    if (e.key === 'Escape') { cancelInlineEdit(); }
+  });
+}
+
+function cancelInlineEdit() {
+  if (!activeInlineEdit) return;
+  const { td, origVal } = activeInlineEdit;
+  td.classList.remove('td-editing');
+  td.innerHTML = origVal === null ? '<span class="null-v">NULL</span>' : escH(String(origVal));
+  activeInlineEdit = null;
+  hideInlineSaveBar();
+}
+
+async function commitInlineEdit() {
+  if (!activeInlineEdit) return;
+  const { td, absIdx, colIdx, origVal, tbl, pkSet, input } = activeInlineEdit;
+  const newVal = input.value;
+  if (newVal === String(origVal === null ? '' : origVal)) { cancelInlineEdit(); return; }
+
+  const row = lastSorted[absIdx];
+  const whereParts = [], whereVals = [];
+  lastCols.forEach((col, i) => {
+    if (pkSet.has(col)) {
+      whereParts.push('`' + col + '` = \'' + String(row[i]).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\'');
+    }
+  });
+  if (!whereParts.length) { setInlineSaveMsg('No PK values in result set.', 'error'); return; }
+
+  const setClause = '`' + lastCols[colIdx] + '` = \'' + newVal.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\'';
+  const sql = `UPDATE \`${tbl}\` SET ${setClause} WHERE ${whereParts.join(' AND ')}`;
+
+  const btn = document.getElementById('btnInlineSave');
+  btn.disabled = true;
+  setInlineSaveMsg('Saving…', '');
+
+  const r = await api('query', { sql });
+  btn.disabled = false;
+
+  if (!r.ok) {
+    setInlineSaveMsg(r.error, 'error');
+    return;
+  }
+
+  // Update local data and restore cell
+  row[colIdx] = newVal;
+  td.classList.remove('td-editing');
+  td.innerHTML = escH(newVal);
+  activeInlineEdit = null;
+  setInlineSaveMsg(`Saved — ${r.affected} row(s) affected.`, 'ok');
+  setTimeout(hideInlineSaveBar, 2000);
+}
+
+function showInlineSaveBar() { document.getElementById('inlineSaveBar').classList.remove('hidden'); }
+function hideInlineSaveBar() { document.getElementById('inlineSaveBar').classList.add('hidden'); }
+function setInlineSaveMsg(msg, cls) {
+  const el = document.getElementById('inlineSaveMsg');
+  el.textContent = msg;
+  el.className = 'inline-save-msg' + (cls ? ' ' + cls : '');
+}
+
+// Cancel inline edit when clicking outside the table
+document.addEventListener('click', e => {
+  if (activeInlineEdit && !e.target.closest('table.rt')) cancelInlineEdit();
+});
 
 // ── Query history ─────────────────────────────
 function saveHistory(sql) {
