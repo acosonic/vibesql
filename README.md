@@ -26,10 +26,16 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 - **Single file** — everything is in `index.php`. No composer, no npm, no build step.
 - **AI SQL generation** — describe what you want, Claude writes the query using your actual schema as context
 - **SQL syntax highlighting** — PrismJS (SQL grammar, light and dark themes) is embedded directly in `index.php` with no CDN calls (see [Supply-chain safety](#supply-chain-safety))
-- **Row detail modal** — click any result row to open a form view of all columns; PK fields are read-only, all others are editable with a Save button
-- **Inline cell editing** — double-click any non-PK cell to edit it in place; a floating Save bar appears on the right with save / cancel controls; `Enter` saves, `Escape` cancels
-- **Schema sidebar** — browse all tables and columns at a glance
+- **Row detail modal** — click any result row to open a form view of all columns; PK fields are read-only, all others are editable with a Save button; NULL toggle per field
+- **Insert row** — click the **+** button in the results toolbar to open a blank form for the current table and build an `INSERT` statement
+- **Inline cell editing** — double-click any non-PK cell to edit it in place; a floating Save bar appears on the right; `Enter` saves, `Escape` cancels; NULL toggle supported
+- **NULL toggle** — in both the row modal and inline edit, a checkbox lets you explicitly set any field to `NULL` instead of an empty string
+- **Result filter** — type in the **Filter** bar above results to instantly narrow rows client-side without re-running the query; shows match count
+- **Schema sidebar** — browse all tables and columns; use the search box at the top to filter by table or column name — useful on databases with 100+ tables
 - **Query history** — last 50 queries stored in sessionStorage; re-run with one click
+- **Bookmarks** — save named queries to `localStorage` so they survive browser restarts; manage via the **Bookmarks** dropdown next to the editor
+- **EXPLAIN** — one click prepends `EXPLAIN` to the current query and runs it; shows the query execution plan for performance debugging
+- **Auto-refresh** — toggle **Auto-refresh** to re-run the last query every 5 / 10 / 30 / 60 seconds; a status bar shows the row count and a diff indicator (`+N` / `-N`) when the count changes
 - **CSV export** — download the full result set (all pages) as a CSV file
 - **Pagination** — results are paged at 50 rows; sort any column by clicking its header
 - **Read-only mode** — toggle a guard that blocks any non-SELECT query before it reaches the server
@@ -66,9 +72,9 @@ Then open `http://localhost:8080` in your browser. On first load the settings mo
 | `Ctrl+Enter` in SQL editor | Run query |
 | `Ctrl+Enter` in AI input | Generate SQL |
 | `Ctrl+Space` in SQL editor | Trigger autocomplete |
-| `Enter` while editing a cell | Save inline edit |
-| `Escape` while editing a cell | Cancel inline edit |
-| `Escape` | Close settings modal |
+| `Enter` while editing a cell inline | Save inline edit |
+| `Escape` while editing a cell inline | Cancel inline edit |
+| `Escape` | Close settings / row modal |
 
 ## Security notes
 

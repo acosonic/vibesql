@@ -256,7 +256,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_api'])) {
             if ($err) { echo json_encode(['ok' => false, 'error' => 'Blocked: ' . $err]); break; }
             $m = db_connect($host, $user, $pass, $db);
             if (!$m) { echo json_encode(['ok' => false, 'error' => 'Cannot connect to database']); break; }
-            $res = $m->query($sql);
+            try {
+                $res = $m->query($sql);
+            } catch (\mysqli_sql_exception $e) {
+                $m->close();
+                echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+                break;
+            }
             if ($res === false) {
                 echo json_encode(['ok' => false, 'error' => $m->error]);
             } elseif ($res === true) {
@@ -615,6 +621,53 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
 @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+
+/* ── sidebar search ──────────────────────────── */
+.sidebar-search{padding:6px 8px;border-bottom:1px solid var(--line);flex-shrink:0}
+.sidebar-search input{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:5px;color:var(--text);font-size:11.5px;padding:4px 8px;outline:none;transition:border-color .15s}
+.sidebar-search input:focus{border-color:var(--accent)}
+.sidebar-search input::placeholder{color:var(--dim)}
+.sidebar.collapsed .sidebar-search{display:none}
+
+/* ── result filter bar ───────────────────────── */
+.filter-bar{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--line);background:var(--bg1);flex-shrink:0}
+.filter-bar.hidden{display:none}
+.filter-input{flex:1;background:var(--bg0);border:1px solid var(--line);border-radius:5px;color:var(--text);font-size:12px;font-family:monospace;padding:5px 10px;outline:none;transition:border-color .15s}
+.filter-input:focus{border-color:var(--accent)}
+.filter-input::placeholder{color:var(--dim)}
+.filter-count{font-size:11px;color:var(--muted);font-family:monospace;white-space:nowrap}
+
+/* ── bookmarks ───────────────────────────────── */
+.bm-drop{position:absolute;top:calc(100% + 4px);right:0;width:480px;max-width:90vw;background:var(--bg1);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:fadeIn .15s}
+.bm-drop.hidden{display:none}
+.bm-drop-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--line)}
+.bm-drop-hdr span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.bm-list{max-height:240px;overflow-y:auto}
+.bm-item{display:flex;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--line);transition:background .1s}
+.bm-item:last-child{border-bottom:none}
+.bm-item:hover{background:var(--bg2)}
+.bm-item-name{flex:1;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bm-item-name:hover{color:var(--accent)}
+.bm-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:3px;line-height:1;flex-shrink:0}
+.bm-del:hover{color:var(--red)}
+.bm-empty{padding:20px;text-align:center;font-size:12px;color:var(--dim);font-family:monospace}
+.bm-save-row{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line)}
+.bm-save-row input{flex:1;background:var(--bg0);border:1px solid var(--line);border-radius:5px;color:var(--text);font-size:12px;padding:5px 8px;outline:none;transition:border-color .15s}
+.bm-save-row input:focus{border-color:var(--accent)}
+
+/* ── auto-refresh bar ────────────────────────── */
+.refresh-bar{display:flex;align-items:center;gap:8px;padding:5px 14px;border-top:1px solid var(--line);background:var(--bg1);flex-shrink:0;font-size:11.5px;color:var(--muted)}
+.refresh-bar.hidden{display:none}
+.refresh-bar select{background:var(--bg2);border:1px solid var(--line);border-radius:4px;color:var(--text);font-size:11.5px;padding:2px 6px;outline:none;cursor:pointer}
+.refresh-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.refresh-diff-plus{color:var(--green);font-weight:600}
+.refresh-diff-minus{color:var(--red);font-weight:600}
+
+/* ── NULL toggle ─────────────────────────────── */
+.null-toggle{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--dim);cursor:pointer;user-select:none;margin-top:3px}
+.null-toggle input[type=checkbox]{width:12px;height:12px;accent-color:var(--amber);cursor:pointer}
+.null-toggle.is-null label,.null-toggle.is-null input{color:var(--amber)}
 </style>
 </head>
 <body>
@@ -752,7 +805,7 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
         <button class="btn-sm" onclick="closeRowModal()">Close</button>
         <button class="btn-save" id="btnSaveRow" onclick="saveRow()" style="display:none">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Save changes
+          <span id="btnSaveRowLabel">Save changes</span>
         </button>
       </div>
     </div>
@@ -769,6 +822,9 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
       <button class="sidebar-toggle" id="sidebarToggle">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L6 8l4 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" id="sidebarArrow"/></svg>
       </button>
+    </div>
+    <div class="sidebar-search" id="sidebarSearch" style="display:none">
+      <input type="text" id="schemaFilter" placeholder="Filter tables &amp; columns…" oninput="filterSchema(this.value)" autocomplete="off">
     </div>
     <div class="sidebar-body" id="schemaTree"><div class="no-schema">Select a database</div></div>
   </aside>
@@ -807,17 +863,37 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 5l-2 3 2 3M12 5l2 3-2 3M9 3l-2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           SQL Query
         </span>
-        <div class="history-wrap">
-          <button class="btn-sm" id="historyBtn" onclick="toggleHistory()" title="Query history">
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 3v5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 8a6.5 6.5 0 101 -3.5L1 3v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            History
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn-sm" onclick="doExplain()" title="Run EXPLAIN on current query">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Explain
           </button>
-          <div class="history-drop hidden" id="historyDrop">
-            <div class="history-drop-hdr">
-              <span>Recent queries</span>
-              <button onclick="clearHistory()">Clear all</button>
+          <div class="history-wrap">
+            <button class="btn-sm" id="bmBtn" onclick="toggleBookmarks()" title="Saved queries">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 2h10a1 1 0 011 1v11l-6-3-6 3V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+              Bookmarks
+            </button>
+            <div class="bm-drop hidden" id="bmDrop">
+              <div class="bm-drop-hdr"><span>Saved queries</span></div>
+              <div class="bm-list" id="bmList"></div>
+              <div class="bm-save-row">
+                <input type="text" id="bmNameInput" placeholder="Name this query…" autocomplete="off">
+                <button class="btn-sm" onclick="saveBookmark()">Save current</button>
+              </div>
             </div>
-            <div class="history-list" id="historyList"></div>
+          </div>
+          <div class="history-wrap">
+            <button class="btn-sm" id="historyBtn" onclick="toggleHistory()" title="Query history">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 3v5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 8a6.5 6.5 0 101 -3.5L1 3v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              History
+            </button>
+            <div class="history-drop hidden" id="historyDrop">
+              <div class="history-drop-hdr">
+                <span>Recent queries</span>
+                <button onclick="clearHistory()">Clear all</button>
+              </div>
+              <div class="history-list" id="historyList"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -847,10 +923,30 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
     <!-- results toolbar -->
     <div class="results-toolbar" id="resultsToolbar" style="display:none">
       <span class="results-info" id="resultsInfo"></span>
+      <button class="btn-sm" onclick="openInsertModal()" title="Insert new row">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Insert row
+      </button>
+      <button class="btn-sm" id="filterToggleBtn" onclick="toggleFilterBar()" title="Filter results">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Filter
+      </button>
+      <button class="btn-sm" id="refreshToggleBtn" onclick="toggleAutoRefresh()" title="Auto-refresh">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 112.5 5M13.5 2v3h-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Auto-refresh
+      </button>
       <button class="btn-sm" onclick="exportCsv()">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v9M5 8l3 3 3-3M2 13h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export CSV
       </button>
+    </div>
+
+    <!-- filter bar -->
+    <div class="filter-bar hidden" id="filterBar">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="color:var(--dim);flex-shrink:0"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" class="filter-input" id="filterInput" placeholder="Filter rows…" oninput="applyFilter(this.value)" autocomplete="off">
+      <span class="filter-count" id="filterCount"></span>
+      <button class="btn-sm" onclick="clearFilter()">Clear</button>
     </div>
 
     <!-- results -->
@@ -863,6 +959,20 @@ table.rt td.td-editing{background:rgba(37,99,235,.07)!important;outline:2px soli
 
     <!-- pagination -->
     <div class="pagination" id="paginationBar" style="display:none"></div>
+
+    <!-- auto-refresh status bar -->
+    <div class="refresh-bar hidden" id="refreshBar">
+      <span class="refresh-dot"></span>
+      <span>Auto-refresh every</span>
+      <select id="refreshInterval" onchange="setRefreshInterval(this.value)">
+        <option value="5">5s</option>
+        <option value="10" selected>10s</option>
+        <option value="30">30s</option>
+        <option value="60">60s</option>
+      </select>
+      <span id="refreshStatus" style="flex:1"></span>
+      <button class="btn-sm" onclick="toggleAutoRefresh()">Stop</button>
+    </div>
 
   </main>
 </div>
@@ -913,7 +1023,8 @@ async function api(action, extra = {}) {
   body.append('model',  state.model);
   for (const [k, v] of Object.entries(extra)) body.append(k, v);
   const r = await fetch('', { method: 'POST', body });
-  return r.json();
+  try { return await r.json(); }
+  catch { return { ok: false, error: 'Server returned an unexpected response. Check PHP error logs.' }; }
 }
 
 // ── Settings ──────────────────────────────────
@@ -1070,6 +1181,8 @@ async function loadSchema(db) {
 function renderSchema(schema) {
   const tree = document.getElementById('schemaTree');
   const tables = Object.keys(schema);
+  document.getElementById('sidebarSearch').style.display = tables.length ? '' : 'none';
+  document.getElementById('schemaFilter').value = '';
   if (!tables.length) {
     tree.innerHTML = '<div class="no-schema">No tables found</div>';
     return;
@@ -1185,17 +1298,25 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1, page = 0) {
     return cmp * sortDir;
   });
 
-  const totalPages = Math.ceil(lastSorted.length / PAGE_SIZE);
-  const pageRows   = lastSorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  renderTablePage(page);
+}
 
-  const th = cols.map((c, i) => {
-    const active = i === sortCol;
-    const arrow  = active ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
+function renderTablePage(page = currentPage) {
+  currentPage = page;
+  const displayRows = getFilteredRows();
+  const totalPages = Math.ceil(displayRows.length / PAGE_SIZE);
+  if (page >= totalPages && page > 0) page = currentPage = 0;
+  const pageRows = displayRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const th = lastCols.map((c, i) => {
+    const active = i === sortState.col;
+    const arrow  = active ? (sortState.dir === 1 ? ' ↑' : ' ↓') : '';
     return `<th class="sortable${active ? ' sort-active' : ''}" onclick="sortBy(${i})">${escH(c)}${arrow}</th>`;
   }).join('');
 
-  const tb = pageRows.map((row, ri) => {
-    const absIdx = page * PAGE_SIZE + ri;
+  // absIdx maps into lastSorted (unfiltered sorted array) for row modal/inline edit
+  const tb = pageRows.map((row) => {
+    const absIdx = lastSorted.indexOf(row);
     const tds = row.map((v, ci) => {
       const content = v === null ? '<span class="null-v">NULL</span>' : escH(String(v));
       return `<td data-col-idx="${ci}">${content}</td>`;
@@ -1209,12 +1330,15 @@ function renderTable(cols, rows, sortCol = null, sortDir = 1, page = 0) {
   attachRowListeners();
 
   // toolbar
-  const toolbar = document.getElementById('resultsToolbar');
-  toolbar.style.display = 'flex';
-  const start = page * PAGE_SIZE + 1, end = Math.min((page + 1) * PAGE_SIZE, lastSorted.length);
-  document.getElementById('resultsInfo').innerHTML =
-    `<strong>${lastSorted.length}</strong> row${lastSorted.length !== 1 ? 's' : ''}` +
-    (totalPages > 1 ? ` &nbsp;·&nbsp; showing <strong>${start}–${end}</strong>` : '');
+  document.getElementById('resultsToolbar').style.display = 'flex';
+  const total = lastSorted.length, shown = displayRows.length;
+  const start = page * PAGE_SIZE + 1, end = Math.min((page + 1) * PAGE_SIZE, shown);
+  let info = `<strong>${total}</strong> row${total !== 1 ? 's' : ''}`;
+  if (filterQuery) info += ` &nbsp;·&nbsp; <strong>${shown}</strong> matching`;
+  if (totalPages > 1) info += ` &nbsp;·&nbsp; showing <strong>${start}–${end}</strong>`;
+  document.getElementById('resultsInfo').innerHTML = info;
+  if (filterQuery) document.getElementById('filterCount').textContent = `${shown} / ${total}`;
+  else document.getElementById('filterCount').textContent = '';
 
   // pagination
   const pgBar = document.getElementById('paginationBar');
@@ -1270,6 +1394,8 @@ function exportCsv() {
 
 function clearResults() {
   lastCols = []; lastRows = []; lastSorted = [];
+  stopAutoRefresh();
+  filterQuery = ''; document.getElementById('filterInput').value = '';
   document.getElementById('resultsArea').innerHTML =
     `<div class="empty-state">
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="4" y="4" width="32" height="32" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 14h32M14 14v22M4 24h32" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2"/></svg>
@@ -1280,7 +1406,7 @@ function clearResults() {
 }
 
 // ── Row detail / edit modal ───────────────────
-let rowModalData = { cols: [], row: [], tableName: '', pkCols: [] };
+let rowModalData = { cols: [], row: [], tableName: '', pkCols: [], insertMode: false };
 
 function detectTableFromSql(sql) {
   const m = sql.replace(/\/\*.*?\*\//gs,'').replace(/--[^\n]*/g,'')
@@ -1288,37 +1414,64 @@ function detectTableFromSql(sql) {
   return m ? m[1] : null;
 }
 
+function buildRowModalFields(cols, row, schemaCols, pkCols, insertMode) {
+  return cols.map((col, i) => {
+    const val  = insertMode ? null : row[i];
+    const sc   = schemaCols.find(c => c.COLUMN_NAME === col);
+    const isPk = pkCols.includes(col);
+    const isLong = sc && /text|blob|json/i.test(sc.COLUMN_TYPE);
+    const isNull = val === null;
+    const pkBadge = isPk ? '<span class="pk-badge">PK</span>' : '';
+    const typeLabel = sc ? `<span style="color:var(--dim);font-weight:400;text-transform:none;margin-left:4px">${escH(sc.COLUMN_TYPE)}</span>` : '';
+    const label = `<label>${escH(col)}${pkBadge}${typeLabel}</label>`;
+    const safeVal = isNull ? '' : String(val);
+    const roAttr = (isPk && !insertMode) ? ' readonly' : '';
+    const nullAttr = isNull ? ' data-isnull="1"' : '';
+    const field = isLong
+      ? `<textarea data-col="${escH(col)}" data-idx="${i}"${roAttr}${nullAttr}>${escH(safeVal)}</textarea>`
+      : `<input type="text" data-col="${escH(col)}" data-idx="${i}"${roAttr}${nullAttr} value="${escH(safeVal)}">`;
+    const nullToggle = (!isPk || insertMode)
+      ? `<label class="null-toggle${isNull ? ' is-null' : ''}" id="nulltoggle_${i}">
+           <input type="checkbox" onchange="toggleNullField(${i},this.checked)"${isNull ? ' checked' : ''}> Set to NULL
+         </label>`
+      : '';
+    return `<div class="row-field">${label}${field}${nullToggle}</div>`;
+  }).join('');
+}
+
+function toggleNullField(idx, isNull) {
+  const el = document.querySelector(`[data-idx="${idx}"]`);
+  const label = document.getElementById(`nulltoggle_${idx}`);
+  if (!el) return;
+  if (isNull) {
+    el.dataset.isnull = '1';
+    el.value = '';
+    el.readOnly = true;
+    el.style.opacity = '.4';
+    label?.classList.add('is-null');
+  } else {
+    delete el.dataset.isnull;
+    el.readOnly = el.hasAttribute('readonly') && !rowModalData.insertMode;
+    el.style.opacity = '';
+    label?.classList.remove('is-null');
+  }
+}
+
 function openRowModal(absIdx) {
   const row  = lastSorted[absIdx];
   const cols = lastCols;
   if (!row || !cols.length) return;
 
-  // Try to detect which table the query hit
   const sql  = document.getElementById('sqlInput').value.trim();
   const tbl  = detectTableFromSql(sql);
   const schemaCols = (tbl && state.schema[tbl]) ? state.schema[tbl] : [];
   const pkCols = schemaCols.filter(c => c.COLUMN_KEY === 'PRI').map(c => c.COLUMN_NAME);
 
-  rowModalData = { cols, row, tableName: tbl, pkCols };
-
+  rowModalData = { cols, row, tableName: tbl, pkCols, insertMode: false };
   document.getElementById('rowModalTitle').textContent = tbl ? tbl + ' — row detail' : 'Row detail';
+  document.getElementById('rowModalBody').innerHTML = buildRowModalFields(cols, row, schemaCols, pkCols, false);
+  document.getElementById('btnSaveRowLabel').textContent = 'Save changes';
 
-  const body = document.getElementById('rowModalBody');
-  body.innerHTML = cols.map((col, i) => {
-    const val  = row[i];
-    const sc   = schemaCols.find(c => c.COLUMN_NAME === col);
-    const isPk = pkCols.includes(col);
-    const isLong = sc && /text|blob|json/i.test(sc.COLUMN_TYPE);
-    const pkBadge = isPk ? '<span class="pk-badge">PK</span>' : '';
-    const label = `<label>${escH(col)}${pkBadge}${sc ? `<span style="color:var(--dim);font-weight:400;text-transform:none;margin-left:4px">${escH(sc.COLUMN_TYPE)}</span>` : ''}</label>`;
-    const safeVal = val === null ? '' : String(val);
-    const field = isLong
-      ? `<textarea data-col="${escH(col)}" data-idx="${i}"${isPk ? ' readonly' : ''}>${escH(safeVal)}</textarea>`
-      : `<input type="text" data-col="${escH(col)}" data-idx="${i}"${isPk ? ' readonly' : ''} value="${escH(safeVal)}">`;
-    return `<div class="row-field">${label}${field}</div>`;
-  }).join('');
-
-  // Show Save button only if we know the table and it has a PK
   const canSave = tbl && pkCols.length > 0 && !readOnly;
   document.getElementById('btnSaveRow').style.display = canSave ? '' : 'none';
   document.getElementById('rowModalStatus').textContent =
@@ -1326,7 +1479,24 @@ function openRowModal(absIdx) {
     !pkCols.length ? 'Read-only: no primary key found.' :
     readOnly ? 'Read-only mode is on.' : '';
   document.getElementById('rowModalStatus').className = 'ftr-left';
+  document.getElementById('rowOverlay').classList.remove('hidden');
+}
 
+function openInsertModal() {
+  if (!lastCols.length) return;
+  const sql = document.getElementById('sqlInput').value.trim();
+  const tbl = detectTableFromSql(sql);
+  if (!tbl) { showMsg('Cannot detect table for INSERT (complex query).', 'error'); return; }
+  const schemaCols = state.schema[tbl] || [];
+  const pkCols = schemaCols.filter(c => c.COLUMN_KEY === 'PRI').map(c => c.COLUMN_NAME);
+
+  rowModalData = { cols: lastCols, row: [], tableName: tbl, pkCols, insertMode: true };
+  document.getElementById('rowModalTitle').textContent = tbl + ' — new row';
+  document.getElementById('rowModalBody').innerHTML = buildRowModalFields(lastCols, [], schemaCols, pkCols, true);
+  document.getElementById('btnSaveRowLabel').textContent = 'Insert row';
+  document.getElementById('btnSaveRow').style.display = readOnly ? 'none' : '';
+  document.getElementById('rowModalStatus').textContent = readOnly ? 'Read-only mode is on.' : '';
+  document.getElementById('rowModalStatus').className = 'ftr-left';
   document.getElementById('rowOverlay').classList.remove('hidden');
 }
 
@@ -1335,64 +1505,53 @@ function closeRowModal() {
   document.getElementById('rowModalStatus').textContent = '';
 }
 
+function sqlEscape(v) { return v.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
 async function saveRow() {
-  const { cols, row, tableName, pkCols } = rowModalData;
-  if (!tableName || !pkCols.length) return;
+  const { cols, row, tableName, pkCols, insertMode } = rowModalData;
+  if (!tableName) return;
 
   const inputs = document.getElementById('rowModalBody').querySelectorAll('[data-col]');
-  const setClauses = [], setVals = [];
-  const whereClauses = [], whereVals = [];
-
-  inputs.forEach(el => {
-    const col = el.getAttribute('data-col');
-    const idx = parseInt(el.getAttribute('data-idx'));
-    const newVal = el.value;
-    const origVal = row[idx];
-
-    if (pkCols.includes(col)) {
-      whereClauses.push('`' + col + '` = ?');
-      whereVals.push(origVal === null ? 'NULL' : origVal);
-    } else {
-      setClauses.push('`' + col + '` = ?');
-      setVals.push(newVal === '' && origVal === null ? '__NULL__' : newVal);
-    }
-  });
-
-  if (!setClauses.length) {
-    rowModalStatus('Nothing to update (all editable fields unchanged).', 'error');
-    return;
-  }
-
-  // Build parameterised-style SQL (server side uses real_escape_string)
-  const allVals = [...setVals, ...whereVals];
-  let sql = `UPDATE \`${tableName}\` SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')}`;
-
-  // Substitute placeholders with escaped values (JS side — server validates too)
-  let i = 0;
-  const sqlFinal = sql.replace(/\?/g, () => {
-    const v = allVals[i++];
-    if (v === '__NULL__') return 'NULL';
-    return "'" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-  });
-
   const btn = document.getElementById('btnSaveRow');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> Saving…';
 
-  const r = await api('query', { sql: sqlFinal });
-
-  btn.disabled = false;
-  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Save changes';
-
-  if (!r.ok) {
-    rowModalStatus(r.error, 'error');
+  let sqlFinal;
+  if (insertMode) {
+    const colNames = [], colVals = [];
+    inputs.forEach(el => {
+      colNames.push('`' + el.getAttribute('data-col') + '`');
+      colVals.push(el.dataset.isnull ? 'NULL' : "'" + sqlEscape(el.value) + "'");
+    });
+    sqlFinal = `INSERT INTO \`${tableName}\` (${colNames.join(', ')}) VALUES (${colVals.join(', ')})`;
   } else {
-    rowModalStatus(`Saved — ${r.affected} row(s) affected.`, 'ok');
-    // Update local lastSorted so the table reflects changes without re-query
-    const body = document.getElementById('rowModalBody');
-    body.querySelectorAll('[data-col]').forEach(el => {
+    if (!pkCols.length) return;
+    const setClauses = [], whereClauses = [];
+    inputs.forEach(el => {
+      const col = el.getAttribute('data-col');
       const idx = parseInt(el.getAttribute('data-idx'));
-      lastSorted.forEach(sr => { if (sr === rowModalData.row) sr[idx] = el.value; });
+      if (pkCols.includes(col)) {
+        const pv = row[idx];
+        whereClauses.push('`' + col + '` = \'' + sqlEscape(String(pv ?? '')) + '\'');
+      } else {
+        setClauses.push('`' + col + '` = ' + (el.dataset.isnull ? 'NULL' : "'" + sqlEscape(el.value) + "'"));
+      }
+    });
+    if (!setClauses.length) { rowModalStatus('Nothing to update.', 'error'); btn.disabled=false; btn.innerHTML='<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> <span id="btnSaveRowLabel">Save changes</span>'; return; }
+    sqlFinal = `UPDATE \`${tableName}\` SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')}`;
+  }
+
+  const r = await api('query', { sql: sqlFinal });
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 9l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> <span id="btnSaveRowLabel">${insertMode ? 'Insert row' : 'Save changes'}</span>`;
+
+  if (!r.ok) { rowModalStatus(r.error, 'error'); return; }
+  rowModalStatus(insertMode ? `Inserted — ${r.affected} row(s).` : `Saved — ${r.affected} row(s) affected.`, 'ok');
+  if (!insertMode) {
+    document.getElementById('rowModalBody').querySelectorAll('[data-col]').forEach(el => {
+      const idx = parseInt(el.getAttribute('data-idx'));
+      const newVal = el.dataset.isnull ? null : el.value;
+      lastSorted.forEach(sr => { if (sr === rowModalData.row) sr[idx] = newVal; });
     });
   }
 }
@@ -1401,6 +1560,185 @@ function rowModalStatus(msg, cls) {
   const el = document.getElementById('rowModalStatus');
   el.textContent = msg;
   el.className = 'ftr-left ' + cls;
+}
+
+// ── EXPLAIN ───────────────────────────────────
+function doExplain() {
+  const sql = document.getElementById('sqlInput').value.trim();
+  if (!sql) return;
+  document.getElementById('sqlInput').value = 'EXPLAIN ' + sql;
+  syncHighlight();
+  doQuery();
+}
+
+// ── Bookmarks ─────────────────────────────────
+function toggleBookmarks() {
+  const drop = document.getElementById('bmDrop');
+  const hidden = drop.classList.toggle('hidden');
+  if (!hidden) renderBookmarks();
+}
+
+function renderBookmarks() {
+  const bms = JSON.parse(LS.get('bookmarks') || '[]');
+  const list = document.getElementById('bmList');
+  if (!bms.length) { list.innerHTML = '<div class="bm-empty">No saved queries yet</div>'; return; }
+  list.innerHTML = bms.map((bm, i) =>
+    `<div class="bm-item">
+       <span class="bm-item-name" onclick="useBookmark(${i})" title="${escH(bm.sql)}">${escH(bm.name)}</span>
+       <button class="bm-del" onclick="deleteBookmark(${i})" title="Delete">×</button>
+     </div>`
+  ).join('');
+}
+
+function saveBookmark() {
+  const name = document.getElementById('bmNameInput').value.trim();
+  const sql  = document.getElementById('sqlInput').value.trim();
+  if (!name || !sql) return;
+  const bms = JSON.parse(LS.get('bookmarks') || '[]');
+  bms.unshift({ name, sql });
+  LS.set('bookmarks', JSON.stringify(bms.slice(0, 100)));
+  document.getElementById('bmNameInput').value = '';
+  renderBookmarks();
+}
+
+function useBookmark(i) {
+  const bms = JSON.parse(LS.get('bookmarks') || '[]');
+  if (!bms[i]) return;
+  document.getElementById('sqlInput').value = bms[i].sql;
+  syncHighlight();
+  document.getElementById('bmDrop').classList.add('hidden');
+}
+
+function deleteBookmark(i) {
+  const bms = JSON.parse(LS.get('bookmarks') || '[]');
+  bms.splice(i, 1);
+  LS.set('bookmarks', JSON.stringify(bms));
+  renderBookmarks();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.history-wrap') && !e.target.closest('#bmBtn'))
+    document.getElementById('bmDrop')?.classList.add('hidden');
+});
+
+// ── Schema sidebar filter ─────────────────────
+function filterSchema(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.table-node').forEach(node => {
+    const tblName = node.querySelector('.tbl-name')?.textContent.toLowerCase() || '';
+    const cols = [...node.querySelectorAll('.col-name')];
+    if (!q) {
+      node.style.display = '';
+      cols.forEach(c => c.closest('.col-row').style.display = '');
+      return;
+    }
+    const tblMatch = tblName.includes(q);
+    let anyCol = false;
+    cols.forEach(c => {
+      const match = tblMatch || c.textContent.toLowerCase().includes(q);
+      c.closest('.col-row').style.display = match ? '' : 'none';
+      if (match) anyCol = true;
+    });
+    node.style.display = (tblMatch || anyCol) ? '' : 'none';
+    // Auto-expand matching tables
+    if ((tblMatch || anyCol) && q) {
+      node.querySelector('.table-btn')?.classList.add('open');
+      node.querySelector('.col-list')?.classList.add('open');
+    }
+  });
+}
+
+// ── Result filter ─────────────────────────────
+let filterActive = false;
+let filterQuery  = '';
+
+function toggleFilterBar() {
+  filterActive = !filterActive;
+  document.getElementById('filterBar').classList.toggle('hidden', !filterActive);
+  document.getElementById('filterToggleBtn').classList.toggle('active', filterActive);
+  if (filterActive) { document.getElementById('filterInput').focus(); }
+  else { clearFilter(); }
+}
+
+function applyFilter(q) {
+  filterQuery = q.toLowerCase();
+  renderTablePage();
+}
+
+function clearFilter() {
+  filterQuery = '';
+  document.getElementById('filterInput').value = '';
+  document.getElementById('filterCount').textContent = '';
+  renderTablePage();
+}
+
+function getFilteredRows() {
+  if (!filterQuery) return lastSorted;
+  return lastSorted.filter(row =>
+    row.some(v => v !== null && String(v).toLowerCase().includes(filterQuery))
+  );
+}
+
+// ── Auto-refresh ──────────────────────────────
+let refreshTimer   = null;
+let refreshRunning = false;
+let refreshIntervalSec = 10;
+let lastRefreshCount = null;
+
+function toggleAutoRefresh() {
+  if (refreshRunning) {
+    stopAutoRefresh();
+  } else {
+    const sql = document.getElementById('sqlInput').value.trim();
+    if (!sql) { showMsg('Enter a query first.', 'error'); return; }
+    startAutoRefresh();
+  }
+}
+
+function startAutoRefresh() {
+  refreshRunning = true;
+  lastRefreshCount = lastSorted.length || null;
+  document.getElementById('refreshBar').classList.remove('hidden');
+  document.getElementById('refreshToggleBtn').classList.add('active');
+  scheduleRefresh();
+}
+
+function stopAutoRefresh() {
+  refreshRunning = false;
+  clearTimeout(refreshTimer);
+  document.getElementById('refreshBar').classList.add('hidden');
+  document.getElementById('refreshToggleBtn').classList.remove('active');
+  document.getElementById('refreshStatus').textContent = '';
+}
+
+function setRefreshInterval(v) {
+  refreshIntervalSec = parseInt(v);
+  clearTimeout(refreshTimer);
+  if (refreshRunning) scheduleRefresh();
+}
+
+function scheduleRefresh() {
+  refreshTimer = setTimeout(async () => {
+    if (!refreshRunning) return;
+    const sql = document.getElementById('sqlInput').value.trim();
+    if (!sql) { stopAutoRefresh(); return; }
+    document.getElementById('refreshStatus').textContent = 'Refreshing…';
+    const r = await api('query', { sql });
+    if (r.ok && r.type === 'select') {
+      const newCount = r.rows.length;
+      const diff = lastRefreshCount !== null ? newCount - lastRefreshCount : 0;
+      lastRefreshCount = newCount;
+      renderTable(r.columns, r.rows);
+      const diffStr = diff === 0 ? '' :
+        diff > 0 ? `<span class="refresh-diff-plus">+${diff} rows</span>` :
+                   `<span class="refresh-diff-minus">${diff} rows</span>`;
+      document.getElementById('refreshStatus').innerHTML =
+        `${newCount} rows · last refresh ${new Date().toLocaleTimeString()} ${diffStr}`;
+    } else if (!r.ok) {
+      document.getElementById('refreshStatus').textContent = 'Error: ' + r.error;
+    }
+    if (refreshRunning) scheduleRefresh();
+  }, refreshIntervalSec * 1000);
 }
 
 // ── Inline edit ───────────────────────────────
