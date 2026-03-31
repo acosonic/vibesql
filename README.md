@@ -8,6 +8,12 @@ A single small PHP file that turns any MySQL database into an AI-powered query i
 ![SQL highlighting dark](screenshots/06-highlight-dark.png)
 ![Row detail modal](screenshots/07-row-modal-light.png)
 ![Inline cell editing](screenshots/09-inline-edit-light.png)
+![Insert new row](screenshots/14-insert-modal-light.png)
+![Result filter](screenshots/11-filter-light.png)
+![Bookmarks](screenshots/12-bookmarks-light.png)
+![EXPLAIN](screenshots/13-explain-light.png)
+![Schema sidebar search](screenshots/15-sidebar-search-light.png)
+![Auto-refresh](screenshots/16-autorefresh-dark.png)
 
 ## How it works
 
